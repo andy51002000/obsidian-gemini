@@ -199,7 +199,7 @@ export class RagSearchTool implements Tool {
 			// Perform search using generateContent with File Search tool
 			// Use the configured chat model for consistency
 			const response = await ai.models.generateContent({
-				model: plugin.settings.chatModelName,
+				model: plugin.getChatModelName(),
 				contents: `Search for information about: ${params.query}\n\nProvide a summary of the most relevant findings from the indexed documents. Include specific file references when available.`,
 				config: {
 					tools: [

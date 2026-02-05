@@ -39,6 +39,8 @@ export interface ModelDiscoverySettings {
 	fallbackToStatic: boolean;
 }
 
+export type LlmProvider = 'gemini' | 'openrouter';
+
 export interface RagIndexingSettings {
 	enabled: boolean;
 	fileSearchStoreName: string | null;
@@ -48,10 +50,15 @@ export interface RagIndexingSettings {
 }
 
 export interface ObsidianGeminiSettings {
+	llmProvider: LlmProvider;
 	apiKey: string;
+	openRouterApiKey: string;
 	chatModelName: string;
 	summaryModelName: string;
 	completionsModelName: string;
+	openRouterChatModelName: string;
+	openRouterSummaryModelName: string;
+	openRouterCompletionsModelName: string;
 	imageModelName: string;
 	summaryFrontmatterKey: string;
 	userName: string;
@@ -79,10 +86,15 @@ export interface ObsidianGeminiSettings {
 }
 
 const DEFAULT_SETTINGS: ObsidianGeminiSettings = {
+	llmProvider: 'gemini',
 	apiKey: '',
+	openRouterApiKey: '',
 	chatModelName: getDefaultModelForRole('chat'),
 	summaryModelName: getDefaultModelForRole('summary'),
 	completionsModelName: getDefaultModelForRole('completions'),
+	openRouterChatModelName: '',
+	openRouterSummaryModelName: '',
+	openRouterCompletionsModelName: '',
 	imageModelName: getDefaultModelForRole('image'),
 	summaryFrontmatterKey: 'summary',
 	userName: 'User',
@@ -137,8 +149,8 @@ export default class ObsidianGemini extends Plugin {
 	public agentsMemory: AgentsMemory;
 	public examplePrompts: ExamplePromptsManager;
 	public vaultAnalyzer: VaultAnalyzer;
-	public deepResearch: DeepResearchService;
-	public imageGeneration: ImageGeneration;
+	public deepResearch: DeepResearchService | null = null;
+	public imageGeneration: ImageGeneration | null = null;
 	public logger: Logger;
 	public ragIndexing: RagIndexingService | null = null;
 	public selectionActionService: SelectionActionService;
@@ -151,6 +163,7 @@ export default class ObsidianGemini extends Plugin {
 	private ragListenersRegistered: boolean = false;
 	private isGeminiInitialized: boolean = false;
 	private previousApiKey: string = '';
+	private previousProvider: LlmProvider = 'gemini';
 
 	async onload() {
 		// Initialize logger early so it's available during setup
@@ -166,12 +179,13 @@ export default class ObsidianGemini extends Plugin {
 		try {
 			await this.setupGeminiScribe();
 			this.isGeminiInitialized = true;
-			this.previousApiKey = this.settings.apiKey;
+			this.previousApiKey = this.getActiveApiKey();
+			this.previousProvider = this.getLlmProvider();
 		} catch (error) {
 			this.logger.error('Failed to initialize Gemini Scribe:', error);
 			// Show a helpful notice if it's an API key error
 			if (error instanceof Error && error.message.includes('API key')) {
-				new Notice('Gemini Scribe: Please configure your API key in settings to enable the plugin.');
+				new Notice(`Gemini Scribe: ${this.getProviderConfigurationNotice()}`);
 			} else {
 				new Notice('Gemini Scribe failed to initialize. Please check the console for details.');
 			}
@@ -190,10 +204,63 @@ export default class ObsidianGemini extends Plugin {
 	 */
 	private checkInitialized(): boolean {
 		if (!this.isGeminiInitialized) {
-			new Notice('Please configure your API key in Gemini Scribe settings first.');
+			new Notice('Please configure your API key for the selected provider in Gemini Scribe settings first.');
+			return false;
+		}
+
+		if (!this.isProviderConfigured()) {
+			new Notice(this.getProviderConfigurationNotice());
 			return false;
 		}
 		return true;
+	}
+
+	getLlmProvider(): LlmProvider {
+		return this.settings.llmProvider || 'gemini';
+	}
+
+	isGeminiProvider(): boolean {
+		return this.getLlmProvider() === 'gemini';
+	}
+
+	getActiveApiKey(): string {
+		return this.isGeminiProvider() ? this.settings.apiKey : this.settings.openRouterApiKey;
+	}
+
+	getChatModelName(): string {
+		return this.isGeminiProvider() ? this.settings.chatModelName : (this.settings.openRouterChatModelName || '').trim();
+	}
+
+	getSummaryModelName(): string {
+		if (this.isGeminiProvider()) {
+			return this.settings.summaryModelName;
+		}
+		return (this.settings.openRouterSummaryModelName || '').trim() || this.getChatModelName();
+	}
+
+	getCompletionsModelName(): string {
+		if (this.isGeminiProvider()) {
+			return this.settings.completionsModelName;
+		}
+		return (this.settings.openRouterCompletionsModelName || '').trim() || this.getChatModelName();
+	}
+
+	getImageModelName(): string {
+		return this.settings.imageModelName;
+	}
+
+	private isProviderConfigured(): boolean {
+		if (this.isGeminiProvider()) {
+			return !!this.settings.apiKey;
+		}
+		return !!this.settings.openRouterApiKey && !!this.getChatModelName();
+	}
+
+	private getProviderConfigurationNotice(): string {
+		if (this.isGeminiProvider()) {
+			return 'Please configure your Gemini API key in Gemini Scribe settings first.';
+		}
+		return 'Please configure your OpenRouter API key and chat model in Gemini Scribe settings first.';
 	}
 
 	/**
@@ -487,6 +554,8 @@ export default class ObsidianGemini extends Plugin {
 			await this.teardownGeminiScribe();
 		}
 
+		const isGeminiProvider = this.isGeminiProvider();
+
 		// Initialize prompts
 		this.prompts = new GeminiPrompts(this);
 
@@ -496,12 +565,12 @@ export default class ObsidianGemini extends Plugin {
 		// Note: API clients are now created on-demand by features using GeminiClientFactory
 		this.gfile = new ScribeFile(this);
 
-		// Initialize model manager
+		// Initialize model manager (Gemini only)
 		this.modelManager = new ModelManager(this);
 		await this.modelManager.initialize();
 
-		// Update models if discovery is enabled
-		if (this.settings.modelDiscovery.enabled) {
+		// Update models if discovery is enabled (Gemini only)
+		if (isGeminiProvider && this.settings.modelDiscovery.enabled) {
 			this.updateModelsIfNeeded();
 		}
 
@@ -532,11 +601,13 @@ export default class ObsidianGemini extends Plugin {
 			this.toolRegistry.registerTool(tool);
 		}
 
-		// Register web tools (Google Search and Web Fetch)
-		const { getWebTools } = await import('./tools/web-tools');
-		const webTools = getWebTools();
-		for (const tool of webTools) {
-			this.toolRegistry.registerTool(tool);
+		if (isGeminiProvider) {
+			// Register web tools (Google Search and Web Fetch)
+			const { getWebTools } = await import('./tools/web-tools');
+			const webTools = getWebTools();
+			for (const tool of webTools) {
+				this.toolRegistry.registerTool(tool);
+			}
 		}
 
 		// Register memory tools
@@ -546,11 +617,13 @@ export default class ObsidianGemini extends Plugin {
 			this.toolRegistry.registerTool(tool);
 		}
 
-		// Register image generation tools
-		const { getImageTools } = await import('./tools/image-tools');
-		const imageTools = getImageTools();
-		for (const tool of imageTools) {
-			this.toolRegistry.registerTool(tool);
+		if (isGeminiProvider) {
+			// Register image generation tools
+			const { getImageTools } = await import('./tools/image-tools');
+			const imageTools = getImageTools();
+			for (const tool of imageTools) {
+				this.toolRegistry.registerTool(tool);
+			}
 		}
 
 		// Initialize completions
@@ -566,12 +639,17 @@ export default class ObsidianGemini extends Plugin {
 		this.vaultAnalyzer = new VaultAnalyzer(this);
 		this.vaultAnalyzer.setupInitCommand();
 
-		// Initialize deep research service
-		this.deepResearch = new DeepResearchService(this);
+		if (isGeminiProvider) {
+			// Initialize deep research service
+			this.deepResearch = new DeepResearchService(this);
 
-		// Initialize image generation
-		this.imageGeneration = new ImageGeneration(this);
-		await this.imageGeneration.setupImageGenerationCommand();
+			// Initialize image generation
+			this.imageGeneration = new ImageGeneration(this);
+			await this.imageGeneration.setupImageGenerationCommand();
+		} else {
+			this.deepResearch = null;
+			this.imageGeneration = null;
+		}
 
 		// Initialize selection action service
 		this.selectionActionService = new SelectionActionService(this);
@@ -590,6 +668,15 @@ export default class ObsidianGemini extends Plugin {
 	 * Should only be called when workspace layout is ready
 	 */
 	async initializeRagIndexing(): Promise<void> {
+		if (!this.isGeminiProvider()) {
+			if (this.settings.ragIndexing.enabled) {
+				this.settings.ragIndexing.enabled = false;
+				await this.saveData(this.settings);
+				new Notice('Vault search indexing is only available with the Gemini provider.');
+			}
+			return;
+		}
+
 		if (this.settings.ragIndexing.enabled) {
 			// Clean up existing instance if re-initializing (e.g., from saveSettings)
 			if (this.ragIndexing) {
@@ -780,12 +867,15 @@ export default class ObsidianGemini extends Plugin {
 
 		// Only run model version updates if dynamic discovery is disabled
 		// When dynamic discovery is enabled, user model selections should be preserved
-		if (!this.settings.modelDiscovery?.enabled) {
+		if (this.isGeminiProvider() && !this.settings.modelDiscovery?.enabled) {
 			await this.updateModelVersions();
 		}
 	}
 
 	async updateModelVersions() {
+		if (!this.isGeminiProvider()) {
+			return;
+		}
 		const { updatedSettings, settingsChanged, changedSettingsInfo } = getUpdatedModelSettings(this.settings);
 
 		if (settingsChanged) {
@@ -798,22 +888,39 @@ export default class ObsidianGemini extends Plugin {
 	}
 
 	async saveSettings() {
+		// Disable Gemini-only features when OpenRouter is selected
+		if (!this.isGeminiProvider()) {
+			if (this.settings.modelDiscovery?.enabled) {
+				this.settings.modelDiscovery.enabled = false;
+				new Notice('Model discovery is only available with the Gemini provider.');
+			}
+
+			if (this.settings.ragIndexing?.enabled) {
+				this.settings.ragIndexing.enabled = false;
+				new Notice('Vault search indexing is only available with the Gemini provider.');
+			}
+		}
+
 		await this.saveData(this.settings);
 
 		// Check if we need to re-initialize
-		const apiKeyChanged = this.previousApiKey !== this.settings.apiKey;
-		const needsInit = !this.isGeminiInitialized && this.settings.apiKey;
+		const currentProvider = this.getLlmProvider();
+		const currentApiKey = this.getActiveApiKey();
+		const providerChanged = this.previousProvider !== currentProvider;
+		const apiKeyChanged = this.previousApiKey !== currentApiKey;
+		const needsInit = !this.isGeminiInitialized && !!currentApiKey;
 
 		// Only re-initialize if API key changed or if not initialized but now have key
-		if (apiKeyChanged || needsInit) {
+		if (providerChanged || apiKeyChanged || needsInit) {
 			try {
 				await this.setupGeminiScribe();
 				this.isGeminiInitialized = true;
-				this.previousApiKey = this.settings.apiKey;
+				this.previousApiKey = currentApiKey;
+				this.previousProvider = currentProvider;
 
 				// If this is the first successful initialization, we may need to
 				// re-register UI components to make them functional
-				if (needsInit && !apiKeyChanged) {
+				if (needsInit && !apiKeyChanged && !providerChanged) {
 					new Notice('Gemini Scribe is now ready to use!');
 				}
 			} catch (error) {
@@ -824,7 +931,7 @@ export default class ObsidianGemini extends Plugin {
 		}
 
 		// If model discovery settings changed, update models
-		if (this.settings.modelDiscovery.enabled && this.modelManager) {
+		if (this.isGeminiProvider() && this.settings.modelDiscovery.enabled && this.modelManager) {
 			this.updateModelsIfNeeded();
 		}
 	}
@@ -833,7 +940,7 @@ export default class ObsidianGemini extends Plugin {
 	 * Update models if auto-update interval has passed
 	 */
 	private async updateModelsIfNeeded(): Promise<void> {
-		if (!this.settings.modelDiscovery.enabled || !this.modelManager) {
+		if (!this.isGeminiProvider() || !this.settings.modelDiscovery.enabled || !this.modelManager) {
 			return;
 		}
 

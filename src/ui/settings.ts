@@ -1,4 +1,4 @@
-import ObsidianGemini from '../main';
+import ObsidianGemini, { LlmProvider } from '../main';
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { selectModelSetting } from './settings-helpers';
 import { FolderSuggest } from './folder-suggest';
@@ -38,6 +38,30 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 	 * Create temperature setting with dynamic ranges based on model capabilities
 	 */
 	private async createTemperatureSetting(containerEl: HTMLElement): Promise<void> {
+		if (!this.plugin.isGeminiProvider()) {
+			new Setting(containerEl)
+				.setName('Temperature')
+				.setDesc('Controls randomness. Lower values are more deterministic. (Range: 0 to 2.0)')
+				.addSlider((slider) =>
+					slider
+						.setLimits(0, 2, 0.1)
+						.setValue(this.plugin.settings.temperature)
+						.setDynamicTooltip()
+						.onChange(async (value) => {
+							if (this.temperatureDebounceTimer) {
+								clearTimeout(this.temperatureDebounceTimer);
+							}
+
+							this.plugin.settings.temperature = value;
+
+							this.temperatureDebounceTimer = setTimeout(async () => {
+								await this.plugin.saveSettings();
+							}, 300);
+						})
+				);
+			return;
+		}
+
 		const modelManager = this.plugin.getModelManager();
 		const ranges = await modelManager.getParameterRanges();
 		const displayInfo = await modelManager.getParameterDisplayInfo();
@@ -86,6 +110,30 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 	 * Create topP setting with dynamic ranges based on model capabilities
 	 */
 	private async createTopPSetting(containerEl: HTMLElement): Promise<void> {
+		if (!this.plugin.isGeminiProvider()) {
+			new Setting(containerEl)
+				.setName('Top P')
+				.setDesc('Controls diversity. Lower values are more focused. (Range: 0 to 1.0)')
+				.addSlider((slider) =>
+					slider
+						.setLimits(0, 1, 0.05)
+						.setValue(this.plugin.settings.topP)
+						.setDynamicTooltip()
+						.onChange(async (value) => {
+							if (this.topPDebounceTimer) {
+								clearTimeout(this.topPDebounceTimer);
+							}
+
+							this.plugin.settings.topP = value;
+
+							this.topPDebounceTimer = setTimeout(async () => {
+								await this.plugin.saveSettings();
+							}, 300);
+						})
+				);
+			return;
+		}
+
 		const modelManager = this.plugin.getModelManager();
 		const ranges = await modelManager.getParameterRanges();
 		const displayInfo = await modelManager.getParameterDisplayInfo();
@@ -134,6 +182,7 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 
 		containerEl.empty();
+		const isGeminiProvider = this.plugin.isGeminiProvider();
 
 		// Documentation button at the top
 		new Setting(containerEl)
@@ -146,61 +195,143 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('API Key')
-			.setDesc('Your Google Gemini API key. Get one free at https://aistudio.google.com/apikey')
-			.addText((text) => {
-				text
-					.setPlaceholder('Enter your API Key')
-					.setValue(this.plugin.settings.apiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.apiKey = value;
-						await this.plugin.saveSettings();
-					});
-				// Set input width to accommodate at least 40 characters
-				text.inputEl.style.width = '40ch';
+			.setName('LLM Provider')
+			.setDesc('Choose which API to use for text generation')
+			.addDropdown((dropdown) => {
+				dropdown.addOption('gemini', 'Gemini');
+				dropdown.addOption('openrouter', 'OpenRouter');
+				dropdown.setValue(this.plugin.settings.llmProvider || 'gemini');
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.llmProvider = value as LlmProvider;
+					await this.plugin.saveSettings();
+					this.display();
+				});
 			});
 
-		// Add note about model version filtering
-		new Setting(containerEl)
-			.setName('Model Versions')
-			.setDesc(
-				'ℹ️ Only Gemini 2.5+ models are shown. Older model versions have been deprecated by Google and are no longer supported.'
-			)
-			.addButton((button) =>
-				button.setButtonText('Learn More').onClick(() => {
-					window.open('https://ai.google.dev/gemini-api/docs/models/gemini');
-				})
-			);
+		if (isGeminiProvider) {
+			new Setting(containerEl)
+				.setName('Gemini API Key')
+				.setDesc('Your Google Gemini API key. Get one free at https://aistudio.google.com/apikey')
+				.addText((text) => {
+					text
+						.setPlaceholder('Enter your Gemini API Key')
+						.setValue(this.plugin.settings.apiKey)
+						.onChange(async (value) => {
+							this.plugin.settings.apiKey = value;
+							await this.plugin.saveSettings();
+						});
+					// Set input width to accommodate at least 40 characters
+					text.inputEl.style.width = '40ch';
+				});
+		} else {
+			new Setting(containerEl)
+				.setName('OpenRouter API Key')
+				.setDesc('Your OpenRouter API key. Get one at https://openrouter.ai/keys')
+				.addText((text) => {
+					text
+						.setPlaceholder('Enter your OpenRouter API Key')
+						.setValue(this.plugin.settings.openRouterApiKey)
+						.onChange(async (value) => {
+							this.plugin.settings.openRouterApiKey = value;
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.style.width = '40ch';
+				});
 
-		await selectModelSetting(
-			containerEl,
-			this.plugin,
-			'chatModelName',
-			'Chat Model',
-			'Model used for agent chat sessions, selection rewriting, and web search tools.'
-		);
-		await selectModelSetting(
-			containerEl,
-			this.plugin,
-			'summaryModelName',
-			'Summary Model',
-			'Model used for the "Summarize Active File" command that adds summaries to frontmatter.'
-		);
-		await selectModelSetting(
-			containerEl,
-			this.plugin,
-			'completionsModelName',
-			'Completion Model',
-			'Model used for IDE-style inline completions as you type in notes.'
-		);
-		await selectModelSetting(
-			containerEl,
-			this.plugin,
-			'imageModelName',
-			'Image Model',
-			'Model used for image generation.',
-			'image'
-		);
+			new Setting(containerEl)
+				.setName('OpenRouter Models')
+				.setDesc('Enter model slugs per feature. Example: openai/gpt-4o-mini');
+
+			new Setting(containerEl)
+				.setName('Chat Model')
+				.setDesc('Model used for agent chat sessions, selection rewriting, and tool calls.')
+				.addText((text) => {
+					text
+						.setPlaceholder('e.g., openai/gpt-4o-mini')
+						.setValue(this.plugin.settings.openRouterChatModelName || '')
+						.onChange(async (value) => {
+							this.plugin.settings.openRouterChatModelName = value.trim();
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.style.width = '40ch';
+				});
+
+			new Setting(containerEl)
+				.setName('Summary Model')
+				.setDesc('Model used for summaries. Leave blank to use the chat model.')
+				.addText((text) => {
+					text
+						.setPlaceholder('e.g., openai/gpt-4o-mini')
+						.setValue(this.plugin.settings.openRouterSummaryModelName || '')
+						.onChange(async (value) => {
+							this.plugin.settings.openRouterSummaryModelName = value.trim();
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.style.width = '40ch';
+				});
+
+			new Setting(containerEl)
+				.setName('Completions Model')
+				.setDesc('Model used for inline completions. Leave blank to use the chat model.')
+				.addText((text) => {
+					text
+						.setPlaceholder('e.g., openai/gpt-4o-mini')
+						.setValue(this.plugin.settings.openRouterCompletionsModelName || '')
+						.onChange(async (value) => {
+							this.plugin.settings.openRouterCompletionsModelName = value.trim();
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.style.width = '40ch';
+				});
+		}
+
+		if (isGeminiProvider) {
+			// Add note about model version filtering
+			new Setting(containerEl)
+				.setName('Model Versions')
+				.setDesc(
+					'ℹ️ Only Gemini 2.5+ models are shown. Older model versions have been deprecated by Google and are no longer supported.'
+				)
+				.addButton((button) =>
+					button.setButtonText('Learn More').onClick(() => {
+						window.open('https://ai.google.dev/gemini-api/docs/models/gemini');
+					})
+				);
+
+			await selectModelSetting(
+				containerEl,
+				this.plugin,
+				'chatModelName',
+				'Chat Model',
+				'Model used for agent chat sessions, selection rewriting, and web search tools.'
+			);
+			await selectModelSetting(
+				containerEl,
+				this.plugin,
+				'summaryModelName',
+				'Summary Model',
+				'Model used for the "Summarize Active File" command that adds summaries to frontmatter.'
+			);
+			await selectModelSetting(
+				containerEl,
+				this.plugin,
+				'completionsModelName',
+				'Completion Model',
+				'Model used for IDE-style inline completions as you type in notes.'
+			);
+			await selectModelSetting(
+				containerEl,
+				this.plugin,
+				'imageModelName',
+				'Image Model',
+				'Model used for image generation.',
+				'image'
+			);
+		} else {
+			new Setting(containerEl)
+				.setName('Gemini-Only Features')
+				.setDesc('Image generation, Google Search, Web Fetch, model discovery, and RAG indexing are disabled.');
+		}
 
 		new Setting(containerEl)
 			.setName('Summary Frontmatter Key')
@@ -352,85 +483,87 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 			// Create topP setting with dynamic ranges
 			await this.createTopPSetting(containerEl);
 
-			// Model Discovery Settings (visible in developer settings)
-			new Setting(containerEl).setName('Model Discovery').setHeading();
+			if (isGeminiProvider) {
+				// Model Discovery Settings (visible in developer settings)
+				new Setting(containerEl).setName('Model Discovery').setHeading();
 
-			new Setting(containerEl)
-				.setName('Enable dynamic model discovery')
-				.setDesc("Automatically discover and update available Gemini models from Google's API")
-				.addToggle((toggle) =>
-					toggle.setValue(this.plugin.settings.modelDiscovery.enabled).onChange(async (value) => {
-						this.plugin.settings.modelDiscovery.enabled = value;
-						await this.plugin.saveSettings();
-						this.display(); // Refresh to show/hide dependent settings
-					})
-				);
-
-			if (this.plugin.settings.modelDiscovery.enabled) {
 				new Setting(containerEl)
-					.setName('Auto-update interval (hours)')
-					.setDesc('How often to check for new models (0 to disable auto-update)')
-					.addSlider((slider) =>
-						slider
-							.setLimits(0, 168, 1) // 0 to 7 days
-							.setValue(this.plugin.settings.modelDiscovery.autoUpdateInterval)
-							.setDynamicTooltip()
-							.onChange(async (value) => {
-								this.plugin.settings.modelDiscovery.autoUpdateInterval = value;
+					.setName('Enable dynamic model discovery')
+					.setDesc("Automatically discover and update available Gemini models from Google's API")
+					.addToggle((toggle) =>
+						toggle.setValue(this.plugin.settings.modelDiscovery.enabled).onChange(async (value) => {
+							this.plugin.settings.modelDiscovery.enabled = value;
+							await this.plugin.saveSettings();
+							this.display(); // Refresh to show/hide dependent settings
+						})
+					);
+
+				if (this.plugin.settings.modelDiscovery.enabled) {
+					new Setting(containerEl)
+						.setName('Auto-update interval (hours)')
+						.setDesc('How often to check for new models (0 to disable auto-update)')
+						.addSlider((slider) =>
+							slider
+								.setLimits(0, 168, 1) // 0 to 7 days
+								.setValue(this.plugin.settings.modelDiscovery.autoUpdateInterval)
+								.setDynamicTooltip()
+								.onChange(async (value) => {
+									this.plugin.settings.modelDiscovery.autoUpdateInterval = value;
+									await this.plugin.saveSettings();
+								})
+						);
+
+					new Setting(containerEl)
+						.setName('Fallback to static models')
+						.setDesc('Use built-in model list when API discovery fails')
+						.addToggle((toggle) =>
+							toggle.setValue(this.plugin.settings.modelDiscovery.fallbackToStatic).onChange(async (value) => {
+								this.plugin.settings.modelDiscovery.fallbackToStatic = value;
 								await this.plugin.saveSettings();
+							})
+						);
+
+					// Discovery Status and Controls
+					const statusSetting = new Setting(containerEl)
+						.setName('Discovery status')
+						.setDesc('Current status of model discovery');
+
+					// Add refresh button and status display
+					statusSetting.addButton((button) =>
+						button
+							.setButtonText('Refresh models')
+							.setTooltip('Manually refresh the model list from Google API')
+							.onClick(async () => {
+								button.setButtonText('Refreshing...');
+								button.setDisabled(true);
+
+								try {
+									const result = await this.plugin.getModelManager().refreshModels();
+
+									if (result.success) {
+										button.setButtonText('✓ Refreshed');
+										// Show results
+										const statusText = `Found ${result.modelsFound} models${result.changes ? ' (changes detected)' : ''}`;
+										statusSetting.setDesc(`Last refresh: ${new Date().toLocaleTimeString()} - ${statusText}`);
+									} else {
+										button.setButtonText('✗ Failed');
+										statusSetting.setDesc(`Refresh failed: ${result.error || 'Unknown error'}`);
+									}
+								} catch (error) {
+									button.setButtonText('✗ Error');
+									statusSetting.setDesc(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+								}
+
+								setTimeout(() => {
+									button.setButtonText('Refresh models');
+									button.setDisabled(false);
+								}, 2000);
 							})
 					);
 
-				new Setting(containerEl)
-					.setName('Fallback to static models')
-					.setDesc('Use built-in model list when API discovery fails')
-					.addToggle((toggle) =>
-						toggle.setValue(this.plugin.settings.modelDiscovery.fallbackToStatic).onChange(async (value) => {
-							this.plugin.settings.modelDiscovery.fallbackToStatic = value;
-							await this.plugin.saveSettings();
-						})
-					);
-
-				// Discovery Status and Controls
-				const statusSetting = new Setting(containerEl)
-					.setName('Discovery status')
-					.setDesc('Current status of model discovery');
-
-				// Add refresh button and status display
-				statusSetting.addButton((button) =>
-					button
-						.setButtonText('Refresh models')
-						.setTooltip('Manually refresh the model list from Google API')
-						.onClick(async () => {
-							button.setButtonText('Refreshing...');
-							button.setDisabled(true);
-
-							try {
-								const result = await this.plugin.getModelManager().refreshModels();
-
-								if (result.success) {
-									button.setButtonText('✓ Refreshed');
-									// Show results
-									const statusText = `Found ${result.modelsFound} models${result.changes ? ' (changes detected)' : ''}`;
-									statusSetting.setDesc(`Last refresh: ${new Date().toLocaleTimeString()} - ${statusText}`);
-								} else {
-									button.setButtonText('✗ Failed');
-									statusSetting.setDesc(`Refresh failed: ${result.error || 'Unknown error'}`);
-								}
-							} catch (error) {
-								button.setButtonText('✗ Error');
-								statusSetting.setDesc(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-							}
-
-							setTimeout(() => {
-								button.setButtonText('Refresh models');
-								button.setDisabled(false);
-							}, 2000);
-						})
-				);
-
-				// Show current status
-				this.updateDiscoveryStatus(statusSetting);
+					// Show current status
+					this.updateDiscoveryStatus(statusSetting);
+				}
 			}
 
 			// Tool Execution Settings
@@ -492,204 +625,208 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 					);
 			}
 
-			// Vault Search Index (RAG) Settings
-			new Setting(containerEl).setName('Vault Search Index (Experimental)').setHeading();
+			if (isGeminiProvider) {
+				// Vault Search Index (RAG) Settings
+				new Setting(containerEl).setName('Vault Search Index (Experimental)').setHeading();
 
-			// Privacy warning
-			const privacyWarning = containerEl.createDiv({ cls: 'setting-item' });
-			privacyWarning.createEl('div', {
-				cls: 'setting-item-description',
-				text:
-					'⚠️ Privacy Notice: Enabling this feature uploads your vault files to Google Cloud for semantic search. ' +
-					'Files are processed and stored by Google. Consider excluding folders with sensitive information.',
-			});
-			privacyWarning.style.marginBottom = '1em';
-			privacyWarning.style.color = 'var(--text-warning)';
-
-			new Setting(containerEl)
-				.setName('Enable vault indexing')
-				.setDesc('Index your vault files for semantic search using Google File Search.')
-				.addToggle((toggle) =>
-					toggle.setValue(this.plugin.settings.ragIndexing.enabled).onChange(async (value) => {
-						if (!value && this.plugin.settings.ragIndexing.fileSearchStoreName) {
-							// Revert toggle immediately - will only change if user confirms
-							toggle.setValue(true);
-
-							// Show cleanup modal when disabling
-							const { RagCleanupModal } = await import('./rag-cleanup-modal');
-							const modal = new RagCleanupModal(this.app, async (deleteData) => {
-								if (deleteData && this.plugin.ragIndexing) {
-									await this.plugin.ragIndexing.deleteFileSearchStore();
-								}
-								this.plugin.settings.ragIndexing.enabled = false;
-								await this.plugin.saveSettings();
-								this.display();
-							});
-							modal.open();
-						} else {
-							this.plugin.settings.ragIndexing.enabled = value;
-							await this.plugin.saveSettings();
-							this.display();
-						}
-					})
-				);
-
-			if (this.plugin.settings.ragIndexing.enabled) {
-				// Index status
-				const indexCount = this.plugin.ragIndexing?.getIndexedFileCount() ?? 0;
-				const statusText = this.plugin.settings.ragIndexing.fileSearchStoreName
-					? `${indexCount} files indexed`
-					: 'Not yet indexed';
+				// Privacy warning
+				const privacyWarning = containerEl.createDiv({ cls: 'setting-item' });
+				privacyWarning.createEl('div', {
+					cls: 'setting-item-description',
+					text:
+						'⚠️ Privacy Notice: Enabling this feature uploads your vault files to Google Cloud for semantic search. ' +
+						'Files are processed and stored by Google. Consider excluding folders with sensitive information.',
+				});
+				privacyWarning.style.marginBottom = '1em';
+				privacyWarning.style.color = 'var(--text-warning)';
 
 				new Setting(containerEl)
-					.setName('Index status')
-					.setDesc(statusText)
-					.addButton((button) =>
-						button.setButtonText('Reindex Vault').onClick(async () => {
-							if (!this.plugin.ragIndexing) {
-								new Notice('RAG indexing service not initialized');
-								return;
-							}
+					.setName('Enable vault indexing')
+					.setDesc('Index your vault files for semantic search using Google File Search.')
+					.addToggle((toggle) =>
+						toggle.setValue(this.plugin.settings.ragIndexing.enabled).onChange(async (value) => {
+							if (!value && this.plugin.settings.ragIndexing.fileSearchStoreName) {
+								// Revert toggle immediately - will only change if user confirms
+								toggle.setValue(true);
 
-							button.setButtonText('Indexing...');
-							button.setDisabled(true);
-
-							try {
-								const result = await this.plugin.ragIndexing.indexVault((progress) => {
-									button.setButtonText(`${progress.current}/${progress.total}`);
+								// Show cleanup modal when disabling
+								const { RagCleanupModal } = await import('./rag-cleanup-modal');
+								const modal = new RagCleanupModal(this.app, async (deleteData) => {
+									if (deleteData && this.plugin.ragIndexing) {
+										await this.plugin.ragIndexing.deleteFileSearchStore();
+									}
+									this.plugin.settings.ragIndexing.enabled = false;
+									await this.plugin.saveSettings();
+									this.display();
 								});
-
-								new Notice(`Indexed ${result.indexed} files (${result.skipped} skipped, ${result.failed} failed)`);
+								modal.open();
+							} else {
+								this.plugin.settings.ragIndexing.enabled = value;
+								await this.plugin.saveSettings();
 								this.display();
-							} catch (error) {
-								new Notice(`Indexing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-							} finally {
-								button.setButtonText('Reindex Vault');
-								button.setDisabled(false);
 							}
 						})
-					)
-					.addButton((button) =>
-						button
-							.setButtonText('Delete Index')
-							.setWarning()
-							.onClick(async () => {
+					);
+
+				if (this.plugin.settings.ragIndexing.enabled) {
+					// Index status
+					const indexCount = this.plugin.ragIndexing?.getIndexedFileCount() ?? 0;
+					const statusText = this.plugin.settings.ragIndexing.fileSearchStoreName
+						? `${indexCount} files indexed`
+						: 'Not yet indexed';
+
+					new Setting(containerEl)
+						.setName('Index status')
+						.setDesc(statusText)
+						.addButton((button) =>
+							button.setButtonText('Reindex Vault').onClick(async () => {
 								if (!this.plugin.ragIndexing) {
 									new Notice('RAG indexing service not initialized');
 									return;
 								}
 
-								// Show confirmation modal
-								const { RagCleanupModal } = await import('./rag-cleanup-modal');
-								const modal = new RagCleanupModal(this.app, async (deleteData) => {
-									if (deleteData && this.plugin.ragIndexing) {
-										button.setButtonText('Deleting...');
-										button.setDisabled(true);
+								button.setButtonText('Indexing...');
+								button.setDisabled(true);
 
-										try {
-											await this.plugin.ragIndexing.deleteFileSearchStore();
-											new Notice('Index deleted. Use "Reindex Vault" to rebuild.');
-											this.display();
-										} catch (error) {
-											new Notice(`Failed to delete index: ${error instanceof Error ? error.message : 'Unknown error'}`);
-										} finally {
-											button.setButtonText('Delete Index');
-											button.setDisabled(false);
-										}
-									}
-								});
-								modal.open();
+								try {
+									const result = await this.plugin.ragIndexing.indexVault((progress) => {
+										button.setButtonText(`${progress.current}/${progress.total}`);
+									});
+
+									new Notice(`Indexed ${result.indexed} files (${result.skipped} skipped, ${result.failed} failed)`);
+									this.display();
+								} catch (error) {
+									new Notice(`Indexing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+								} finally {
+									button.setButtonText('Reindex Vault');
+									button.setDisabled(false);
+								}
 							})
-					);
-
-				// Store name setting
-				const currentStoreName = this.plugin.settings.ragIndexing.fileSearchStoreName;
-				const storeNameSetting = new Setting(containerEl)
-					.setName('Search index name')
-					.setDesc(
-						currentStoreName
-							? `Current: ${currentStoreName}. To change, disable indexing and delete the store first.`
-							: 'Will be auto-generated on first index, or enter a custom name.'
-					);
-
-				if (currentStoreName) {
-					// Store exists - show read-only with copy button
-					storeNameSetting
-						.addText((text) => {
-							text.inputEl.style.width = '30ch';
-							text.setValue(currentStoreName);
-							text.setDisabled(true);
-						})
+						)
 						.addButton((button) =>
 							button
-								.setButtonText('Copy')
-								.setTooltip('Copy store name to clipboard')
+								.setButtonText('Delete Index')
+								.setWarning()
 								.onClick(async () => {
-									await navigator.clipboard.writeText(currentStoreName);
-									new Notice('Store name copied to clipboard');
+									if (!this.plugin.ragIndexing) {
+										new Notice('RAG indexing service not initialized');
+										return;
+									}
+
+									// Show confirmation modal
+									const { RagCleanupModal } = await import('./rag-cleanup-modal');
+									const modal = new RagCleanupModal(this.app, async (deleteData) => {
+										if (deleteData && this.plugin.ragIndexing) {
+											button.setButtonText('Deleting...');
+											button.setDisabled(true);
+
+											try {
+												await this.plugin.ragIndexing.deleteFileSearchStore();
+												new Notice('Index deleted. Use "Reindex Vault" to rebuild.');
+												this.display();
+											} catch (error) {
+												new Notice(
+													`Failed to delete index: ${error instanceof Error ? error.message : 'Unknown error'}`
+												);
+											} finally {
+												button.setButtonText('Delete Index');
+												button.setDisabled(false);
+											}
+										}
+									});
+									modal.open();
 								})
 						);
-				} else {
-					// No store yet - allow editing
-					storeNameSetting.addText((text) => {
-						text.inputEl.style.width = '30ch';
-						text
-							.setPlaceholder('Auto-generated if empty')
-							.setValue('')
-							.onChange(async (value) => {
-								const trimmedValue = value.trim();
-								if (trimmedValue) {
-									this.plugin.settings.ragIndexing.fileSearchStoreName = trimmedValue;
-									await this.plugin.saveSettings();
-									new Notice('Store name set. Will be used when indexing starts.');
-								}
-							});
-					});
-				}
 
-				new Setting(containerEl)
-					.setName('Auto-sync changes')
-					.setDesc('Automatically update the index when files are created, modified, or deleted.')
-					.addToggle((toggle) =>
-						toggle.setValue(this.plugin.settings.ragIndexing.autoSync).onChange(async (value) => {
-							this.plugin.settings.ragIndexing.autoSync = value;
-							await this.plugin.saveSettings();
-						})
-					);
+					// Store name setting
+					const currentStoreName = this.plugin.settings.ragIndexing.fileSearchStoreName;
+					const storeNameSetting = new Setting(containerEl)
+						.setName('Search index name')
+						.setDesc(
+							currentStoreName
+								? `Current: ${currentStoreName}. To change, disable indexing and delete the store first.`
+								: 'Will be auto-generated on first index, or enter a custom name.'
+						);
 
-				new Setting(containerEl)
-					.setName('Include attachments')
-					.setDesc('Index PDFs and other supported file types in addition to markdown notes. Requires reindexing.')
-					.addToggle((toggle) =>
-						toggle.setValue(this.plugin.settings.ragIndexing.includeAttachments).onChange(async (value) => {
-							this.plugin.settings.ragIndexing.includeAttachments = value;
-							await this.plugin.saveSettings();
-							new Notice('Attachment setting changed. Reindex vault to apply changes.');
-						})
-					);
+					if (currentStoreName) {
+						// Store exists - show read-only with copy button
+						storeNameSetting
+							.addText((text) => {
+								text.inputEl.style.width = '30ch';
+								text.setValue(currentStoreName);
+								text.setDisabled(true);
+							})
+							.addButton((button) =>
+								button
+									.setButtonText('Copy')
+									.setTooltip('Copy store name to clipboard')
+									.onClick(async () => {
+										await navigator.clipboard.writeText(currentStoreName);
+										new Notice('Store name copied to clipboard');
+									})
+							);
+					} else {
+						// No store yet - allow editing
+						storeNameSetting.addText((text) => {
+							text.inputEl.style.width = '30ch';
+							text
+								.setPlaceholder('Auto-generated if empty')
+								.setValue('')
+								.onChange(async (value) => {
+									const trimmedValue = value.trim();
+									if (trimmedValue) {
+										this.plugin.settings.ragIndexing.fileSearchStoreName = trimmedValue;
+										await this.plugin.saveSettings();
+										new Notice('Store name set. Will be used when indexing starts.');
+									}
+								});
+						});
+					}
 
-				// Build the list of excluded folders including system folders
-				const systemFolders = [this.plugin.settings.historyFolder, '.obsidian'];
-				const userFolders = this.plugin.settings.ragIndexing.excludeFolders.filter((f) => !systemFolders.includes(f)); // Remove duplicates with system folders
-
-				new Setting(containerEl)
-					.setName('Exclude folders')
-					.setDesc(`Always excluded: ${systemFolders.join(', ')}. Add additional folders below (one per line).`)
-					.addTextArea((text) => {
-						text.inputEl.rows = 4;
-						text.inputEl.cols = 30;
-						text
-							.setPlaceholder('Additional folders to exclude...')
-							.setValue(userFolders.join('\n'))
-							.onChange(async (value) => {
-								// Filter out system folders to prevent confusion
-								this.plugin.settings.ragIndexing.excludeFolders = value
-									.split('\n')
-									.map((f) => f.trim())
-									.filter((f) => f.length > 0 && !systemFolders.includes(f));
+					new Setting(containerEl)
+						.setName('Auto-sync changes')
+						.setDesc('Automatically update the index when files are created, modified, or deleted.')
+						.addToggle((toggle) =>
+							toggle.setValue(this.plugin.settings.ragIndexing.autoSync).onChange(async (value) => {
+								this.plugin.settings.ragIndexing.autoSync = value;
 								await this.plugin.saveSettings();
-							});
-					});
+							})
+						);
+
+					new Setting(containerEl)
+						.setName('Include attachments')
+						.setDesc('Index PDFs and other supported file types in addition to markdown notes. Requires reindexing.')
+						.addToggle((toggle) =>
+							toggle.setValue(this.plugin.settings.ragIndexing.includeAttachments).onChange(async (value) => {
+								this.plugin.settings.ragIndexing.includeAttachments = value;
+								await this.plugin.saveSettings();
+								new Notice('Attachment setting changed. Reindex vault to apply changes.');
+							})
+						);
+
+					// Build the list of excluded folders including system folders
+					const systemFolders = [this.plugin.settings.historyFolder, '.obsidian'];
+					const userFolders = this.plugin.settings.ragIndexing.excludeFolders.filter((f) => !systemFolders.includes(f)); // Remove duplicates with system folders
+
+					new Setting(containerEl)
+						.setName('Exclude folders')
+						.setDesc(`Always excluded: ${systemFolders.join(', ')}. Add additional folders below (one per line).`)
+						.addTextArea((text) => {
+							text.inputEl.rows = 4;
+							text.inputEl.cols = 30;
+							text
+								.setPlaceholder('Additional folders to exclude...')
+								.setValue(userFolders.join('\n'))
+								.onChange(async (value) => {
+									// Filter out system folders to prevent confusion
+									this.plugin.settings.ragIndexing.excludeFolders = value
+										.split('\n')
+										.map((f) => f.trim())
+										.filter((f) => f.length > 0 && !systemFolders.includes(f));
+									await this.plugin.saveSettings();
+								});
+						});
+				}
 			}
 		}
 	}

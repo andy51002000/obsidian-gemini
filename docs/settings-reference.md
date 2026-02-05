@@ -13,13 +13,28 @@ This document provides a comprehensive reference for all Obsidian Gemini Scribe 
 
 ## Basic Settings
 
-### API Key
+### LLM Provider
+
+- **Setting**: `llmProvider`
+- **Type**: String
+- **Default**: `gemini`
+- **Description**: Select which provider to use for text generation (`gemini` or `openrouter`)
+
+### Gemini API Key
 
 - **Setting**: `apiKey`
 - **Type**: String
-- **Required**: Yes
+- **Required**: Yes (when `llmProvider` is `gemini`)
 - **Description**: Your Google AI API key for accessing Gemini models
 - **How to obtain**: Visit [Google AI Studio](https://aistudio.google.com/apikey)
+
+### OpenRouter API Key
+
+- **Setting**: `openRouterApiKey`
+- **Type**: String
+- **Required**: Yes (when `llmProvider` is `openrouter`)
+- **Description**: Your OpenRouter API key for accessing OpenRouter-hosted models
+- **How to obtain**: Visit [OpenRouter](https://openrouter.ai/keys)
 
 ### Your Name
 
@@ -59,36 +74,61 @@ This document provides a comprehensive reference for all Obsidian Gemini Scribe 
 
 ## Model Configuration
 
-All models are selected from available Gemini models. The plugin supports dynamic model discovery to automatically fetch the latest models from Google's API.
+Model configuration depends on the selected provider:
 
-### Chat Model
+- **Gemini**: Select from available Gemini models (with optional model discovery)
+- **OpenRouter**: Enter model slugs directly (free-text)
+
+### Chat Model (Gemini)
 
 - **Setting**: `chatModelName`
 - **Type**: String
 - **Default**: `gemini-2.5-pro`
-- **Description**: Model used for agent chat conversations
+- **Description**: Model used for agent chat conversations when `llmProvider` is `gemini`
 - **Available Models**:
   - `gemini-2.5-pro` - Gemini 2.5 Pro (most capable, default for chat)
   - `gemini-flash-latest` - Gemini Flash Latest (fast and efficient)
   - `gemini-flash-lite-latest` - Gemini Flash Lite Latest (lightweight)
   - `gemini-3-pro-preview` - Gemini 3 Pro Preview (experimental)
-- **Note**: Model discovery automatically fetches the latest available models from Google's API
+- **Note**: Model discovery (Gemini-only) automatically fetches the latest available models from Google's API
 
-### Summary Model
+### Summary Model (Gemini)
 
 - **Setting**: `summaryModelName`
 - **Type**: String
 - **Default**: `gemini-flash-latest`
-- **Description**: Model used for document summarization and selection-based text rewriting
+- **Description**: Model used for document summarization and selection-based text rewriting when `llmProvider` is `gemini`
 - **Used by**: Summarize Active File command, Rewrite text with AI command
 
-### Completions Model
+### Completions Model (Gemini)
 
 - **Setting**: `completionsModelName`
 - **Type**: String
 - **Default**: `gemini-flash-lite-latest`
-- **Description**: Model used for IDE-style auto-completions
+- **Description**: Model used for IDE-style auto-completions when `llmProvider` is `gemini`
 - **Note**: Completions must be enabled via command palette
+
+### Chat Model (OpenRouter)
+
+- **Setting**: `openRouterChatModelName`
+- **Type**: String
+- **Default**: empty
+- **Description**: Model slug used for agent chat conversations when `llmProvider` is `openrouter`
+- **Example**: `openai/gpt-4o-mini`
+
+### Summary Model (OpenRouter)
+
+- **Setting**: `openRouterSummaryModelName`
+- **Type**: String
+- **Default**: empty (falls back to chat model)
+- **Description**: Model slug used for document summarization when `llmProvider` is `openrouter`
+
+### Completions Model (OpenRouter)
+
+- **Setting**: `openRouterCompletionsModelName`
+- **Type**: String
+- **Default**: empty (falls back to chat model)
+- **Description**: Model slug used for IDE-style auto-completions when `llmProvider` is `openrouter`
 
 ## Custom Prompts
 
@@ -162,7 +202,7 @@ Advanced settings for developers and power users. Access by clicking "Show Advan
   - **Lower (0.0-0.5)**: More focused, deterministic, consistent
   - **Medium (0.5-1.0)**: Balanced creativity and coherence
   - **Higher (1.0-2.0)**: More creative, varied, unpredictable
-- **Note**: Ranges automatically adjusted based on selected model's capabilities
+- **Note**: For Gemini, ranges are automatically adjusted based on selected model capabilities. OpenRouter uses standard ranges.
 
 #### Top-P
 
@@ -176,14 +216,14 @@ Advanced settings for developers and power users. Access by clicking "Show Advan
 
 ### Model Discovery
 
-Dynamic model discovery automatically fetches the latest available Gemini models and their capabilities from Google's API.
+Dynamic model discovery (Gemini-only) automatically fetches the latest available Gemini models and their capabilities from Google's API.
 
 #### Enable Model Discovery
 
 - **Setting**: `modelDiscovery.enabled`
 - **Type**: Boolean
 - **Default**: `true`
-- **Description**: Automatically discover and update available Gemini models
+- **Description**: Automatically discover and update available Gemini models (Gemini only)
 
 #### Auto-Update Interval
 

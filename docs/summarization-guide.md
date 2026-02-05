@@ -1,6 +1,6 @@
 # Document Summarization Guide
 
-The Document Summarization feature uses AI to generate concise, one-sentence summaries of your notes, automatically storing them in the note's frontmatter for easy access and organization.
+The Document Summarization feature uses AI to generate concise, one-sentence summaries of your notes, automatically storing them in the note's frontmatter for easy access and organization. Summarization works with both Gemini and OpenRouter providers; OpenRouter uses model slugs you enter in settings.
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@ The Document Summarization feature uses AI to generate concise, one-sentence sum
 
 ### AI Model
 
-- Uses a fast, efficient model (typically Gemini Flash)
+- Uses a fast, efficient model (Gemini Flash for Gemini provider, or your OpenRouter summary model)
 - Optimized for quick, accurate summarization
 - Separate from chat model for better performance
 
@@ -92,15 +92,14 @@ Discussed timeline changes, budget concerns, and new feature requests...
 In Settings → Gemini Scribe:
 
 1. **Summary Model**: Choose the AI model for summarization
-   - Gemini 1.5 Flash (recommended for speed)
-   - Gemini 1.5 Flash-8B (fastest, good quality)
-   - Gemini 1.5 Pro (highest quality, slower)
+   - Gemini: 1.5 Flash (recommended for speed), 1.5 Flash-8B (fastest), 1.5 Pro (highest quality)
+   - OpenRouter: enter a model slug (leave blank to reuse the chat model)
 
 2. **Summary Frontmatter Key**: Customize the metadata field
    - Default: `summary`
    - Change to: `description`, `abstract`, `brief`, etc.
 
-### Model Selection Guide
+### Model Selection Guide (Gemini Examples)
 
 | Model    | Speed   | Quality | Best For                          |
 | -------- | ------- | ------- | --------------------------------- |

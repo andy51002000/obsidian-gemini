@@ -1,11 +1,12 @@
 /**
- * Simplified factory for creating Gemini API clients
+ * Simplified factory for creating model API clients
  *
  * Replaces the complex ApiFactory and ModelFactory with a single,
- * straightforward approach focused solely on Gemini.
+ * straightforward approach focused on the active provider.
  */
 
 import { GeminiClient, GeminiClientConfig } from './gemini-client';
+import { OpenRouterClient, OpenRouterClientConfig } from './openrouter-client';
 import { ModelApi } from './interfaces/model-api';
 import { GeminiPrompts } from '../prompts';
 import { RetryDecorator } from './retry-decorator';
@@ -24,63 +25,59 @@ export enum ModelUseCase {
 }
 
 /**
- * Simple factory for creating Gemini API clients
+ * Simple factory for creating model clients
  */
 export class GeminiClientFactory {
 	/**
-	 * Create a GeminiClient from plugin settings
+	 * Create a model client from plugin settings
 	 *
 	 * @param plugin - Plugin instance with settings
 	 * @param useCase - The use case for this model (determines which model to use)
 	 * @param overrides - Optional config overrides (for per-session settings)
-	 * @returns Configured GeminiClient instance
+	 * @returns Configured model client instance
 	 */
 	static createFromPlugin(
 		plugin: ObsidianGemini,
 		useCase: ModelUseCase,
-		overrides?: Partial<GeminiClientConfig>
+		overrides?: Partial<GeminiClientConfig | OpenRouterClientConfig>
 	): ModelApi {
 		const settings = plugin.settings;
+		const provider = plugin.getLlmProvider();
+
+		const resolveModelName = (role: 'chat' | 'summary' | 'completions') => {
+			const fallback = provider === 'gemini' ? getDefaultModelForRole(role) : '';
+			switch (role) {
+				case 'chat':
+					return plugin.getChatModelName() || fallback;
+				case 'summary':
+					return plugin.getSummaryModelName() || fallback;
+				case 'completions':
+					return plugin.getCompletionsModelName() || fallback;
+			}
+		};
 
 		// Determine which model to use based on use case
 		let modelName: string;
 		switch (useCase) {
 			case ModelUseCase.CHAT:
-				modelName = settings.chatModelName || getDefaultModelForRole('chat');
+				modelName = resolveModelName('chat');
 				break;
 			case ModelUseCase.SUMMARY:
-				modelName = settings.summaryModelName || getDefaultModelForRole('summary');
+				modelName = resolveModelName('summary');
 				break;
 			case ModelUseCase.COMPLETIONS:
-				modelName = settings.completionsModelName || getDefaultModelForRole('completions');
+				modelName = resolveModelName('completions');
 				break;
 			case ModelUseCase.REWRITE:
-				// Rewrite uses chat model
-				modelName = settings.chatModelName || getDefaultModelForRole('chat');
-				break;
 			case ModelUseCase.SEARCH:
-				// Search uses chat model
-				modelName = settings.chatModelName || getDefaultModelForRole('chat');
+				modelName = resolveModelName('chat');
 				break;
 			default:
-				modelName = getDefaultModelForRole('chat');
+				modelName = resolveModelName('chat');
 		}
-
-		// Build config
-		const config: GeminiClientConfig = {
-			apiKey: settings.apiKey,
-			model: modelName,
-			temperature: settings.temperature ?? 1.0,
-			topP: settings.topP ?? 0.95,
-			streamingEnabled: settings.streamingEnabled ?? true,
-			...overrides,
-		};
 
 		// Create prompts instance with plugin reference so it can access settings
 		const prompts = new GeminiPrompts(plugin);
-
-		// Create client
-		const client = new GeminiClient(config, prompts, plugin);
 
 		// Wrap with retry decorator
 		const retryConfig = {
@@ -88,6 +85,42 @@ export class GeminiClientFactory {
 			initialBackoffDelay: settings.initialBackoffDelay ?? 1000,
 		};
 
+		if (provider === 'openrouter') {
+			if (!settings.openRouterApiKey) {
+				throw new Error('OpenRouter API key not configured');
+			}
+			if (!modelName) {
+				throw new Error('OpenRouter model not configured');
+			}
+
+			const config: OpenRouterClientConfig = {
+				apiKey: settings.openRouterApiKey,
+				model: modelName,
+				temperature: settings.temperature ?? 1.0,
+				topP: settings.topP ?? 0.95,
+				streamingEnabled: settings.streamingEnabled ?? true,
+				...(overrides as Partial<OpenRouterClientConfig>),
+			};
+
+			const client = new OpenRouterClient(config, prompts, plugin);
+			return new RetryDecorator(client, retryConfig, plugin.logger);
+		}
+
+		// Gemini provider
+		if (!settings.apiKey) {
+			throw new Error('Gemini API key not configured');
+		}
+
+		const config: GeminiClientConfig = {
+			apiKey: settings.apiKey,
+			model: modelName,
+			temperature: settings.temperature ?? 1.0,
+			topP: settings.topP ?? 0.95,
+			streamingEnabled: settings.streamingEnabled ?? true,
+			...(overrides as Partial<GeminiClientConfig>),
+		};
+
+		const client = new GeminiClient(config, prompts, plugin);
 		return new RetryDecorator(client, retryConfig, plugin.logger);
 	}
 

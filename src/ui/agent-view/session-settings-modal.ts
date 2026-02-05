@@ -30,52 +30,82 @@ export class SessionSettingsModal extends Modal {
 
 		contentEl.createEl('h2', { text: 'Session Settings' });
 
-		// Get available models first
-		const models = await this.plugin.getModelManager().getAvailableModels();
+		const isGeminiProvider = this.plugin.isGeminiProvider();
+		const models = isGeminiProvider ? await this.plugin.getModelManager().getAvailableModels() : [];
 
 		// Model selection
 		const modelSetting = new Setting(contentEl).setName('Model').setDesc('Select the AI model for this session');
 
-		let modelDropdown: DropdownComponent;
-		modelSetting
-			.addDropdown((dropdown: DropdownComponent) => {
-				modelDropdown = dropdown;
+		if (isGeminiProvider) {
+			let modelDropdown: DropdownComponent;
+			modelSetting
+				.addDropdown((dropdown: DropdownComponent) => {
+					modelDropdown = dropdown;
 
-				// Add default option with a special value
-				dropdown.addOption('__default__', 'Use default');
+					// Add default option with a special value
+					dropdown.addOption('__default__', 'Use default');
 
-				// Add available models
-				models.forEach((model: any) => {
-					dropdown.addOption(model.value, model.label);
-				});
-
-				// Set current value
-				dropdown.setValue(this.modelConfig.model || '__default__');
-
-				dropdown.onChange(async (value) => {
-					if (value === '__default__') {
-						delete this.modelConfig.model;
-					} else {
-						this.modelConfig.model = value;
-					}
-					// Save immediately
-					await this.saveConfig();
-				});
-			})
-			.addExtraButton((button) => {
-				button
-					.setIcon('reset')
-					.setTooltip('Reset to default')
-					.onClick(async () => {
-						if (modelDropdown) {
-							// Update the dropdown value
-							modelDropdown.setValue('__default__');
-							// Trigger the onChange handler by simulating a change event
-							const changeEvent = new Event('change', { bubbles: true });
-							modelDropdown.selectEl.dispatchEvent(changeEvent);
-						}
+					// Add available models
+					models.forEach((model: any) => {
+						dropdown.addOption(model.value, model.label);
 					});
-			});
+
+					// Set current value
+					dropdown.setValue(this.modelConfig.model || '__default__');
+
+					dropdown.onChange(async (value) => {
+						if (value === '__default__') {
+							delete this.modelConfig.model;
+						} else {
+							this.modelConfig.model = value;
+						}
+						// Save immediately
+						await this.saveConfig();
+					});
+				})
+				.addExtraButton((button) => {
+					button
+						.setIcon('reset')
+						.setTooltip('Reset to default')
+						.onClick(async () => {
+							if (modelDropdown) {
+								// Update the dropdown value
+								modelDropdown.setValue('__default__');
+								// Trigger the onChange handler by simulating a change event
+								const changeEvent = new Event('change', { bubbles: true });
+								modelDropdown.selectEl.dispatchEvent(changeEvent);
+							}
+						});
+				});
+		} else {
+			modelSetting
+				.setDesc('Enter an OpenRouter model slug for this session (leave blank to use default).')
+				.addText((text) => {
+					text
+						.setPlaceholder('e.g., openai/gpt-4o-mini')
+						.setValue(this.modelConfig.model || '')
+						.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (trimmed) {
+								this.modelConfig.model = trimmed;
+							} else {
+								delete this.modelConfig.model;
+							}
+							await this.saveConfig();
+						});
+					text.inputEl.style.width = '40ch';
+				})
+				.addExtraButton((button) => {
+					button
+						.setIcon('reset')
+						.setTooltip('Reset to default')
+						.onClick(async () => {
+							delete this.modelConfig.model;
+							await this.saveConfig();
+							this.onOpen();
+						});
+				});
+		}
 
 		// Temperature slider
 		new Setting(contentEl)

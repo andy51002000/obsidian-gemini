@@ -21,6 +21,11 @@ To use a tool, you MUST make a function call. The system will execute the tool a
 DO NOT just describe what you would do. ALWAYS use the appropriate tool to complete the task.
 Example: If asked to "create a file", you must call write_file with the path and content.
 
+**PATH RULES**:
+- Always use vault-relative paths for vault tools (e.g., "worklog/20260205.md")
+- NEVER use OS paths like /Users/... or C:\... in tool calls
+- If a user provides an absolute path inside the vault, convert it to a vault-relative path before calling tools
+
 **RESEARCH AND INVESTIGATION**:
 When the user asks questions about their notes, be THOROUGH in your research:
 

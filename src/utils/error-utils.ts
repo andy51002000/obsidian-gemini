@@ -5,7 +5,7 @@
 /**
  * Extract a user-friendly error message from various error types
  *
- * Handles errors from Google Gemini API, network errors, and generic errors.
+ * Handles errors from LLM providers, network errors, and generic errors.
  * Returns a human-readable message that can be displayed to users.
  *
  * @param error - The error object to parse
@@ -40,7 +40,7 @@ export function getErrorMessage(error: unknown): string {
 			messageLower.includes('api_key') ||
 			messageLower.includes('invalid_api_key')
 		) {
-			return 'Invalid API key. Please check your Google Gemini API key in settings.';
+			return 'Invalid API key. Please check your API key in settings.';
 		}
 
 		// Authentication/permission errors
@@ -49,7 +49,7 @@ export function getErrorMessage(error: unknown): string {
 			messageLower.includes('forbidden') ||
 			messageLower.includes('unauthorized')
 		) {
-			return 'Authentication failed. Please verify your API key has access to the Gemini API.';
+			return 'Authentication failed. Please verify your API key has access to the selected provider.';
 		}
 
 		// Rate limiting
@@ -76,7 +76,7 @@ export function getErrorMessage(error: unknown): string {
 			messageLower.includes('econnrefused') ||
 			messageLower.includes('etimedout')
 		) {
-			return 'Network error: Unable to connect to Google Gemini API. Please check your internet connection.';
+			return 'Network error: Unable to connect to the API. Please check your internet connection.';
 		}
 
 		// Timeout errors
@@ -86,7 +86,7 @@ export function getErrorMessage(error: unknown): string {
 
 		// Service unavailable
 		if (messageLower.includes('unavailable') || messageLower.includes('service')) {
-			return 'Google Gemini API is temporarily unavailable. Please try again later.';
+			return 'The API is temporarily unavailable. Please try again later.';
 		}
 
 		// Content filtering/safety
@@ -109,7 +109,7 @@ export function getErrorMessage(error: unknown): string {
 		}
 
 		// Fallback for Error objects without useful message
-		return 'An error occurred while communicating with the Gemini API';
+		return 'An error occurred while communicating with the API';
 	}
 
 	// Handle objects with error information
@@ -153,7 +153,7 @@ export function getErrorMessage(error: unknown): string {
 	}
 
 	// Final fallback
-	return 'An unknown error occurred while communicating with the Gemini API';
+	return 'An unknown error occurred while communicating with the API';
 }
 
 /**
@@ -207,7 +207,7 @@ function getHttpErrorMessage(statusCode: number, error: any): string {
 		case 400:
 			return 'Bad request: The API request was invalid. Please check your message and try again.';
 		case 401:
-			return 'Authentication failed: Invalid API key. Please check your Google Gemini API key in settings.';
+			return 'Authentication failed: Invalid API key. Please check your API key in settings.';
 		case 403:
 			return 'Access forbidden: Your API key does not have permission to use this model or feature.';
 		case 404:
@@ -215,14 +215,14 @@ function getHttpErrorMessage(statusCode: number, error: any): string {
 		case 429:
 			return 'Rate limit exceeded: Too many requests. Please wait a moment and try again.';
 		case 500:
-			return 'Server error: Google Gemini API encountered an internal error. Please try again later.';
+			return 'Server error: The API encountered an internal error. Please try again later.';
 		case 503:
-			return 'Service unavailable: Google Gemini API is temporarily down. Please try again later.';
+			return 'Service unavailable: The API is temporarily down. Please try again later.';
 		case 504:
 			return 'Gateway timeout: The API request took too long. Please try again.';
 		default:
 			if (statusCode >= 500) {
-				return `Server error (${statusCode}): Google Gemini API is experiencing issues. Please try again later.`;
+				return `Server error (${statusCode}): The API is experiencing issues. Please try again later.`;
 			}
 			if (statusCode >= 400) {
 				return `Client error (${statusCode}): ${errorMessage || 'Please check your request and try again.'}`;

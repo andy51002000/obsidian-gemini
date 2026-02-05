@@ -50,7 +50,7 @@ export class GoogleSearchTool implements Tool {
 			const genAI = new GoogleGenAI({ apiKey: plugin.settings.apiKey });
 
 			// Use the models API similar to gemini-api-new.ts
-			const modelToUse = plugin.settings.chatModelName || getDefaultModelForRole('chat');
+			const modelToUse = plugin.getChatModelName() || getDefaultModelForRole('chat');
 			const config = {
 				temperature: plugin.settings.temperature,
 				maxOutputTokens: 8192, // Default max tokens

@@ -5,6 +5,63 @@ import type ObsidianGemini from '../main';
 import { ScribeFile } from '../files';
 import { shouldExcludePathForPlugin as shouldExcludePath } from '../utils/file-utils';
 
+function getVaultBasePath(plugin: InstanceType<typeof ObsidianGemini>): string | null {
+	const adapter = plugin.app.vault.adapter as any;
+	if (adapter && typeof adapter.getBasePath === 'function') {
+		try {
+			return adapter.getBasePath();
+		} catch {
+			return null;
+		}
+	}
+	return null;
+}
+
+function isAbsolutePath(path: string): boolean {
+	return /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(path);
+}
+
+function resolveVaultPath(
+	inputPath: string,
+	plugin: InstanceType<typeof ObsidianGemini>
+): { path: string; error?: string } {
+	const rawPath = (inputPath || '').trim();
+	if (!rawPath) {
+		return { path: '' };
+	}
+
+	const cleanedPath = rawPath.replace(/^file:\/+/, '/');
+	const normalizedInput = normalizePath(cleanedPath);
+	const basePath = getVaultBasePath(plugin);
+
+	if (basePath) {
+		const normalizedBase = normalizePath(basePath);
+		const candidates = [normalizedBase];
+		const baseWithoutLeading = normalizedBase.replace(/^\/+/, '');
+		if (baseWithoutLeading !== normalizedBase) {
+			candidates.push(baseWithoutLeading);
+		}
+
+		for (const candidate of candidates) {
+			if (normalizedInput === candidate) {
+				return { path: '' };
+			}
+			if (normalizedInput.startsWith(candidate + '/')) {
+				return { path: normalizedInput.slice(candidate.length + 1) };
+			}
+		}
+	}
+
+	if (isAbsolutePath(cleanedPath)) {
+		return {
+			path: normalizedInput,
+			error: 'Path is outside the vault. Use a vault-relative path like "worklog/20260205.md" or a wikilink.',
+		};
+	}
+
+	return { path: normalizedInput };
+}
+
 /**
  * Helper function to resolve a path to a file with multiple fallback strategies
  * Handles paths, extensions, wikilinks, and case-insensitive searches
@@ -140,7 +197,7 @@ export class ReadFileTool implements Tool {
 			path: {
 				type: 'string' as const,
 				description:
-					'Path to the file or folder relative to vault root (e.g., "folder/note.md", "folder/note", or "folder"). Extension is optional for files - will try both with and without .md',
+					'Path to the file or folder relative to vault root (e.g., "folder/note.md", "folder/note", or "folder"). Extension is optional for files - will try both with and without .md. Absolute paths inside the vault will be normalized.',
 			},
 		},
 		required: ['path'],
@@ -157,7 +214,15 @@ export class ReadFileTool implements Tool {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
 
 		try {
-			const normalizedPath = normalizePath(params.path);
+			const { path: resolvedPath, error } = resolveVaultPath(params.path, plugin);
+			if (error) {
+				return {
+					success: false,
+					error,
+				};
+			}
+
+			const normalizedPath = normalizePath(resolvedPath);
 
 			// Check if path is excluded
 			if (shouldExcludePath(normalizedPath, plugin)) {
@@ -168,7 +233,7 @@ export class ReadFileTool implements Tool {
 			}
 
 			// Try to resolve as either file or folder (with suggestions for errors)
-			const { item, type, suggestions } = resolvePathToFileOrFolder(params.path, plugin, true);
+			const { item, type, suggestions } = resolvePathToFileOrFolder(resolvedPath, plugin, true);
 
 			if (!item) {
 				// Provide helpful error message with suggestions
@@ -268,7 +333,7 @@ export class WriteFileTool implements Tool {
 		properties: {
 			path: {
 				type: 'string' as const,
-				description: 'Path to the file to write',
+				description: 'Path to the file to write (vault-relative; absolute paths inside the vault will be normalized)',
 			},
 			content: {
 				type: 'string' as const,
@@ -293,7 +358,15 @@ export class WriteFileTool implements Tool {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
 
 		try {
-			const normalizedPath = normalizePath(params.path);
+			const { path: resolvedPath, error } = resolveVaultPath(params.path, plugin);
+			if (error) {
+				return {
+					success: false,
+					error,
+				};
+			}
+
+			const normalizedPath = normalizePath(resolvedPath);
 
 			// Check if path is excluded
 			if (shouldExcludePath(normalizedPath, plugin)) {
@@ -404,7 +477,15 @@ export class ListFilesTool implements Tool {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
 
 		try {
-			const folderPath = params.path || '';
+			const { path: resolvedPath, error } = resolveVaultPath(params.path || '', plugin);
+			if (error) {
+				return {
+					success: false,
+					error,
+				};
+			}
+
+			const folderPath = resolvedPath;
 			const folder = plugin.app.vault.getAbstractFileByPath(folderPath);
 
 			if (folderPath && !folder) {
@@ -496,7 +577,15 @@ export class CreateFolderTool implements Tool {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
 
 		try {
-			const normalizedPath = normalizePath(params.path);
+			const { path: resolvedPath, error } = resolveVaultPath(params.path, plugin);
+			if (error) {
+				return {
+					success: false,
+					error,
+				};
+			}
+
+			const normalizedPath = normalizePath(resolvedPath);
 
 			// Check if path is excluded
 			if (shouldExcludePath(normalizedPath, plugin)) {
@@ -541,7 +630,7 @@ export class DeleteFileTool implements Tool {
 	displayName = 'Delete File';
 	category = ToolCategory.VAULT_OPERATIONS;
 	description =
-		'Permanently delete a file or folder from the vault. WARNING: This action cannot be undone! When deleting a folder, all contents are removed recursively. Returns the path and type (file/folder) that was deleted. Path can be a full path, filename, or wikilink (e.g., "[[My Note]]") - wikilinks will be automatically resolved. Always confirm with the user before executing this destructive operation.';
+		'Permanently delete a file or folder from the vault. WARNING: This action cannot be undone! When deleting a folder, all contents are removed recursively. Returns the path and type (file/folder) that was deleted. Path can be a vault-relative path, filename, or wikilink (e.g., "[[My Note]]") - wikilinks will be automatically resolved. Always confirm with the user before executing this destructive operation.';
 	requiresConfirmation = true;
 
 	parameters = {
@@ -570,7 +659,15 @@ export class DeleteFileTool implements Tool {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
 
 		try {
-			const normalizedPath = normalizePath(params.path);
+			const { path: resolvedPath, error } = resolveVaultPath(params.path, plugin);
+			if (error) {
+				return {
+					success: false,
+					error,
+				};
+			}
+
+			const normalizedPath = normalizePath(resolvedPath);
 
 			// Check if path is excluded
 			if (shouldExcludePath(normalizedPath, plugin)) {
@@ -581,7 +678,7 @@ export class DeleteFileTool implements Tool {
 			}
 
 			// Use shared file/folder resolution helper
-			const { item, type } = resolvePathToFileOrFolder(params.path, plugin);
+			const { item, type } = resolvePathToFileOrFolder(resolvedPath, plugin);
 
 			if (!item) {
 				return {
@@ -617,7 +714,7 @@ export class MoveFileTool implements Tool {
 	displayName = 'Move/Rename File';
 	category = ToolCategory.VAULT_OPERATIONS;
 	description =
-		'Move a file or folder to a different location or rename it. Provide both source and target paths (including filenames for files). Source path can be a full path, filename, or wikilink (e.g., "[[My Note]]") - wikilinks will be automatically resolved. Target directory will be created if it doesn\'t exist. When moving folders, all contents are moved recursively. Returns both paths and action status. Examples: rename "Note.md" to "New Name.md" in same folder, move "Folder A/Note.md" to "Folder B/Subfolder/Note.md", or move "Folder A" to "Folder B/Folder A". Preserves all file metadata and updates internal links automatically.';
+		'Move a file or folder to a different location or rename it. Provide both source and target paths (including filenames for files). Source path can be a vault-relative path, filename, or wikilink (e.g., "[[My Note]]") - wikilinks will be automatically resolved. Target directory will be created if it doesn\'t exist. When moving folders, all contents are moved recursively. Returns both paths and action status. Examples: rename "Note.md" to "New Name.md" in same folder, move "Folder A/Note.md" to "Folder B/Subfolder/Note.md", or move "Folder A" to "Folder B/Folder A". Preserves all file metadata and updates internal links automatically.';
 	requiresConfirmation = true;
 
 	parameters = {
@@ -656,8 +753,24 @@ export class MoveFileTool implements Tool {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
 
 		try {
-			const sourceNormalizedPath = normalizePath(params.sourcePath);
-			const targetNormalizedPath = normalizePath(params.targetPath);
+			const { path: resolvedSourcePath, error: sourceError } = resolveVaultPath(params.sourcePath, plugin);
+			if (sourceError) {
+				return {
+					success: false,
+					error: sourceError,
+				};
+			}
+
+			const { path: resolvedTargetPath, error: targetError } = resolveVaultPath(params.targetPath, plugin);
+			if (targetError) {
+				return {
+					success: false,
+					error: targetError,
+				};
+			}
+
+			const sourceNormalizedPath = normalizePath(resolvedSourcePath);
+			const targetNormalizedPath = normalizePath(resolvedTargetPath);
 
 			// Check if either path is excluded
 			if (shouldExcludePath(sourceNormalizedPath, plugin)) {
@@ -675,7 +788,7 @@ export class MoveFileTool implements Tool {
 			}
 
 			// Use shared file/folder resolution helper
-			const { item: sourceItem, type } = resolvePathToFileOrFolder(params.sourcePath, plugin);
+			const { item: sourceItem, type } = resolvePathToFileOrFolder(resolvedSourcePath, plugin);
 
 			if (!sourceItem) {
 				return {

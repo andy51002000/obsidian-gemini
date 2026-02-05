@@ -23,10 +23,21 @@ export class ImageGeneration {
 		);
 	}
 
+	private ensureGeminiProvider(): boolean {
+		if (!this.plugin.isGeminiProvider()) {
+			new Notice('Image generation is only available with the Gemini provider.');
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Generate an image and insert it at the cursor position
 	 */
 	async generateAndInsertImage(prompt: string): Promise<void> {
+		if (!this.ensureGeminiProvider()) {
+			return;
+		}
 		const editor = this.plugin.app.workspace.activeEditor?.editor;
 		if (!editor) {
 			new Notice('No active editor. Please open a note first.');
@@ -61,6 +72,9 @@ export class ImageGeneration {
 	 * @param targetNotePath - Optional path to a note to use as reference for attachment folder
 	 */
 	async generateImage(prompt: string, targetNotePath?: string): Promise<string> {
+		if (!this.ensureGeminiProvider()) {
+			throw new Error('Image generation is only available with the Gemini provider.');
+		}
 		try {
 			// Generate the image
 			const base64Data = await this.client.generateImage(prompt, this.plugin.settings.imageModelName);
@@ -78,6 +92,9 @@ export class ImageGeneration {
 	 * Uses the summary model to analyze the content and suggest an image prompt
 	 */
 	async suggestPromptFromPage(): Promise<string> {
+		if (!this.ensureGeminiProvider()) {
+			throw new Error('Image generation is only available with the Gemini provider.');
+		}
 		const fileContent = await this.plugin.gfile.getCurrentFileContent(true);
 		if (!fileContent) {
 			throw new Error('Failed to get file content');

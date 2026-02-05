@@ -65,7 +65,7 @@ Selection-Based Text Rewriting allows you to:
 ### Prerequisites
 
 - Gemini Scribe plugin installed and configured
-- Valid Gemini API key
+- Valid API key for the selected provider (Gemini or OpenRouter)
 - An open Markdown document
 
 ### Basic Workflow

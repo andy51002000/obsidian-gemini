@@ -1,8 +1,8 @@
 # Gemini Scribe for Obsidian
 
-Gemini Scribe is an Obsidian plugin that integrates Google's Gemini AI models, providing powerful AI-driven assistance for note-taking, writing, and knowledge management directly within Obsidian. It leverages your notes as context for AI interactions, making it a highly personalized and integrated experience.
+Gemini Scribe is an Obsidian plugin that integrates Google's Gemini models and OpenRouter-hosted models for text generation, providing powerful AI-driven assistance for note-taking, writing, and knowledge management directly within Obsidian. It leverages your notes as context for AI interactions, making it a highly personalized and integrated experience.
 
-> **Note:** This plugin requires a Google Gemini API key. Free tier available at [Google AI Studio](https://aistudio.google.com/apikey).
+> **Note:** This plugin requires an API key for your selected provider (Gemini or OpenRouter). Gemini keys are available at [Google AI Studio](https://aistudio.google.com/apikey).
 
 ## What's New in v4.3.1
 
@@ -29,21 +29,21 @@ This release fixes a critical issue for new users:
 
 ## Features
 
-- **Agent Mode with Tool Calling:** An AI agent that can actively work with your vault! It can search for files, read content, create new notes, edit existing ones, move and rename files, create folders, and even conduct deep research with proper citations. Features persistent sessions, granular permission controls, and session-specific model configuration.
-- **Semantic Vault Search:** [Experimental] Search your vault by meaning, not just keywords. Uses Google's File Search API to index your notes in the background. The AI can find relevant content even when you don't remember exact words. Supports PDFs and attachments, with pause/resume controls and detailed status tracking.
+- **Agent Mode with Tool Calling:** An AI agent that can actively work with your vault! It can search for files, read content, create new notes, edit existing ones, move and rename files, create folders, and even conduct deep research with proper citations (Gemini only). Features persistent sessions, granular permission controls, and session-specific model configuration.
+- **Semantic Vault Search (Gemini only):** [Experimental] Search your vault by meaning, not just keywords. Uses Google's File Search API to index your notes in the background. The AI can find relevant content even when you don't remember exact words. Supports PDFs and attachments, with pause/resume controls and detailed status tracking.
 - **Context-Aware Agent:** Add specific notes as persistent context for your agent sessions. The agent can access and reference these context files throughout your conversation, providing highly relevant and personalized responses.
-- **Smart Summarization:** Quickly generate concise, one-sentence summaries of your notes and automatically store them in the document's frontmatter, using a dedicated Gemini model optimized for summarization.
+- **Smart Summarization:** Quickly generate concise, one-sentence summaries of your notes and automatically store them in the document's frontmatter, using a dedicated model optimized for summarization.
 - **Selection-Based AI Features:** Work with selected text in powerful ways:
   - **Rewrite**: Transform selected text with custom instructions - right-click and choose "Rewrite with Gemini"
   - **Explain Selection**: Get AI explanations using customizable prompts - right-click and choose "Explain Selection"
   - **Ask about Selection**: Ask any question about selected text - right-click and choose "Ask about Selection"
-- **IDE-Style Completions:** Get real-time, context-aware text completions as you type, similar to IDEs. Accept completions with `Tab` or dismiss with any other key. This feature uses a dedicated Gemini model for optimized completion generation.
+- **IDE-Style Completions:** Get real-time, context-aware text completions as you type, similar to IDEs. Accept completions with `Tab` or dismiss with any other key. This feature uses a dedicated model for optimized completion generation.
 - **Persistent Agent Sessions:** Store your agent conversation history directly in your vault as markdown files. Each session is stored in the `gemini-scribe/Agent-Sessions/` folder, making it easy to backup, version control, and continue conversations across sessions.
-- **Configurable Models:** Choose different Gemini models for chat, summarization, and completions, allowing you to tailor the AI's behavior to each task.
+- **Configurable Models:** Choose different models for chat, summarization, and completions, allowing you to tailor the AI's behavior to each task.
 - **Custom Prompt System:** Create reusable AI instruction templates for agent sessions, allowing you to customize the AI's behavior for different workflows (e.g., technical documentation, creative writing, research). Includes command palette commands for easy creation and management.
-- **Image Paste Support:** Paste images directly into the chat input to send them to Gemini for multimodal analysis. Images are automatically saved to your Obsidian attachment folder, displayed as thumbnails before sending, and the AI receives the image path for embedding in notes.
+- **Image Paste Support (Gemini only):** Paste images directly into the chat input to send them to Gemini for multimodal analysis. Images are automatically saved to your Obsidian attachment folder, displayed as thumbnails before sending, and the AI receives the image path for embedding in notes.
 - **Built-in Prompt Templates:** The plugin uses carefully crafted Handlebars templates for system prompts, agent prompts, summarization prompts, selection rewrite prompts, and completion prompts. These ensure consistent and effective AI interaction.
-- **Data Privacy:** All interactions with the Gemini API are done directly from your machine. No data is sent to any third-party servers other than Google's. Agent session history is stored locally in your Obsidian vault as markdown files.
+- **Data Privacy:** All interactions with the selected provider are done directly from your machine. Gemini-only features communicate with Google's APIs. Agent session history is stored locally in your Obsidian vault as markdown files.
 - **Robust Session Management:**
   - Persistent agent sessions that survive restarts
   - Session-specific permissions and settings
@@ -54,8 +54,8 @@ This release fixes a critical issue for new users:
 ## Quick Start
 
 1. Install the plugin from Community Plugins
-2. Get your free API key from [Google AI Studio](https://aistudio.google.com/apikey)
-3. Add the API key in plugin settings
+2. Get an API key for your chosen provider (Gemini or OpenRouter)
+3. Select the provider and add the API key (and model slugs for OpenRouter) in plugin settings
 4. Open Agent Chat with the ribbon icon or command palette
 5. Start using the AI agent to work with your vault!
 
@@ -76,17 +76,22 @@ This release fixes a critical issue for new users:
 
 ## Configuration
 
-1.  **Obtain a Gemini API Key:**
-    - Visit the [Google AI Studio](https://aistudio.google.com/apikey).
-    - Create a new API key.
+1.  **Obtain an API Key:**
+    - **Gemini:** Visit [Google AI Studio](https://aistudio.google.com/apikey) and create a key.
+    - **OpenRouter:** Visit [OpenRouter](https://openrouter.ai/keys) and create a key.
 
 2.  **Configure Plugin Settings:**
     - Open Obsidian Settings.
     - Go to "Gemini Scribe" under "Community plugins".
-    - **API Key:** Paste your Gemini API key here.
-    - **Chat Model:** Select the preferred Gemini model for chat interactions (e.g., `gemini-1.5-pro`).
-    - **Summary Model:** Select the preferred Gemini model for generating summaries (e.g., `gemini-1.5-flash`).
-    - **Completion Model:** Select the preferred model for IDE-style completions (e.g., `gemini-1.5-flash-8b`).
+    - **LLM Provider:** Choose **Gemini** or **OpenRouter**.
+    - **Gemini API Key / OpenRouter API Key:** Paste the key for your selected provider.
+    - **Chat Model:**
+      - Gemini: select the preferred model from the dropdown.
+      - OpenRouter: enter a model slug (e.g., `openai/gpt-4o-mini`).
+    - **Summary Model / Completion Model:**
+      - Gemini: select models from dropdowns.
+      - OpenRouter: enter model slugs (leave blank to use the chat model).
+    - **Image Model:** Gemini-only (used for image generation).
     - **Summary Frontmatter Key:** Specify the key to use when storing summaries in the frontmatter (default: `summary`).
     - **Your Name:** Enter your name, which the AI will use when addressing you.
     - **Chat History:**
@@ -97,9 +102,9 @@ This release fixes a critical issue for new users:
     - **UI Settings:**
       - **Enable Streaming:** Toggle streaming responses for a more interactive chat experience.
     - **Advanced Settings:** (Click "Show Advanced Settings" to reveal)
-      - **Temperature:** Control AI creativity and randomness (0-2.0, automatically adjusted based on available models).
+      - **Temperature:** Control AI creativity and randomness (0-2.0).
       - **Top P:** Control response diversity and focus (0-1.0).
-      - **Model Discovery:** Automatically fetch and update available Gemini models with their parameter limits.
+      - **Model Discovery:** Gemini-only; automatically fetch and update available Gemini models with their parameter limits.
       - **API Configuration:** Configure retry behavior and backoff delays.
       - **Tool Execution:** Control whether to stop agent execution on tool errors.
       - **Tool Loop Detection:** Prevent infinite tool execution loops.
@@ -128,9 +133,9 @@ Let the AI actively work with your vault through tool calling capabilities.
 - **Delete Notes:** Remove notes or folders (with confirmation)
 - **Create Folders:** Organize your vault with new folder structures
 - **List Files:** Browse vault directories and their contents
-- **Web Search:** Search Google for current information (if enabled)
-- **Fetch URLs:** Retrieve and analyze web content
-- **Deep Research:** Conduct comprehensive multi-source research with citations
+- **Web Search (Gemini only):** Search Google for current information (if enabled)
+- **Fetch URLs (Gemini only):** Retrieve and analyze web content
+- **Deep Research (Gemini only):** Conduct comprehensive multi-source research with citations
 
 **Key Features:**
 

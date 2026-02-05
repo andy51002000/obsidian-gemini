@@ -1,6 +1,6 @@
 # Agent Mode Guide
 
-Gemini Scribe v4.0 is **agent-first** - every conversation is powered by an AI assistant that can actively work with your vault through tool calling. This guide covers everything you need to know about using the agent effectively and safely.
+Gemini Scribe v4.0 is **agent-first** - every conversation is powered by an AI assistant that can actively work with your vault through tool calling. This guide covers everything you need to know about using the agent effectively and safely. The agent can run on Gemini or OpenRouter for text generation; Gemini-only tools (web search, image generation, deep research) require the Gemini provider.
 
 ## What is the Agent?
 
@@ -82,7 +82,7 @@ You can include images in your chat for multimodal AI analysis:
 4. The AI receives both the image content and its vault path for referencing
 5. Images appear in the chat with wikilink embeds (e.g., `![[attachments/pasted-image.png]]`)
 
-> **Privacy Note**: Images are sent to the Gemini API for analysis. Avoid pasting images containing sensitive, confidential, or personal information.
+> **Privacy Note**: When using the Gemini provider, images are sent to the Gemini API for analysis. Avoid pasting images containing sensitive, confidential, or personal information.
 
 **Usage Examples:**
 
@@ -186,6 +186,11 @@ Create or update files:
 Create a new note called "Meeting Minutes"
 Update my todo list with these items
 ```
+
+Notes on paths:
+
+- Use vault-relative paths like `worklog/20260205.md`
+- Absolute OS paths are only accepted if they point inside the current vault; otherwise the tool will return an error
 
 #### delete_file
 
@@ -504,7 +509,7 @@ Prevents infinite execution loops:
 
 1. Check agent mode is enabled
 2. Verify API key supports function calling
-3. Ensure selected model supports tools (e.g., Gemini 1.5 Pro)
+3. Ensure the selected model supports tool calling (e.g., Gemini 1.5+ or OpenRouter models that support tools)
 
 ### Tools Not Available
 

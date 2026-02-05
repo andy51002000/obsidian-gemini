@@ -71,7 +71,7 @@ export class WebFetchTool implements Tool {
 
 			// Use the same model that's configured for chat
 			// This ensures consistency with the main conversation
-			const modelToUse = plugin.settings.chatModelName || 'gemini-2.5-flash';
+			const modelToUse = plugin.getChatModelName() || 'gemini-2.5-flash';
 
 			// Create a prompt that includes the URL and the query
 			const prompt = `${params.query} for ${params.url}`;
@@ -250,7 +250,7 @@ export class WebFetchTool implements Tool {
 
 			// Now use Gemini to analyze the content
 			const genAI = new GoogleGenAI({ apiKey: plugin.settings.apiKey });
-			const modelToUse = plugin.settings.chatModelName || 'gemini-2.5-flash';
+			const modelToUse = plugin.getChatModelName() || 'gemini-2.5-flash';
 
 			// Create a prompt with the content
 			const prompt = `Based on the following web page content from ${params.url}, ${params.query}\n\nWeb Page Title: ${title}\n\nContent:\n${content}`;

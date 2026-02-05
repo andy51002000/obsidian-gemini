@@ -79,9 +79,9 @@ If you skip the initial migration or need to migrate additional files later:
    - **Action required:** None - migration handles conversion automatically
 
 2. **API Provider Selection**
-   - **What changed:** Removed Ollama and multi-provider support
-   - **Impact:** Plugin now exclusively uses Google Gemini
-   - **Action required:** Ensure you have a valid Gemini API key
+   - **What changed:** Provider selection now supports Gemini and OpenRouter for text features
+   - **Impact:** Gemini-only features (image generation, web tools, model discovery, RAG) require the Gemini provider
+   - **Action required:** Choose your provider and add the corresponding API key in settings
 
 3. **Enable Agent Mode Toggle**
    - **What changed:** Removed the setting to enable/disable agent mode

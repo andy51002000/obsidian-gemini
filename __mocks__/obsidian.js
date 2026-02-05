@@ -137,6 +137,8 @@ const Menu = jest.fn().mockImplementation(() => ({
 	showAtMouseEvent: jest.fn(),
 }));
 
+const requestUrl = jest.fn();
+
 class AbstractInputSuggest {
 	constructor() {
 		this.inputEl = null;
@@ -222,6 +224,7 @@ module.exports = {
 	setIcon,
 	Notice,
 	normalizePath,
+	requestUrl,
 	FuzzySuggestModal,
 	Menu,
 	AbstractInputSuggest,

@@ -1,6 +1,6 @@
 # Gemini Scribe Documentation
 
-Welcome to the comprehensive documentation for Gemini Scribe v4.0, an Obsidian plugin that integrates Google's Gemini AI models as an intelligent agent that can actively work with your vault.
+Welcome to the comprehensive documentation for Gemini Scribe v4.0, an Obsidian plugin that integrates Gemini and OpenRouter models for text generation as an intelligent agent that can actively work with your vault. Gemini-only features (image generation, web tools, model discovery, and RAG indexing) remain available when the Gemini provider is selected.
 
 > **New in v4.0**: Gemini Scribe is now **agent-first** - every conversation is powered by an AI agent with tool-calling capabilities. The agent can search files, create notes, research topics, and execute multi-step tasks autonomously while respecting your permissions.
 
@@ -24,8 +24,8 @@ Welcome to the comprehensive documentation for Gemini Scribe v4.0, an Obsidian p
 ### Getting Started
 
 1. **Installation**: Install from Obsidian Community Plugins
-2. **API Key**: Get your free key from [Google AI Studio](https://aistudio.google.com/apikey)
-3. **Configuration**: Add your API key in Settings → Gemini Scribe
+2. **API Key**: Get a key from [Google AI Studio](https://aistudio.google.com/apikey) (Gemini) or [OpenRouter](https://openrouter.ai/keys)
+3. **Configuration**: Select your provider and add the API key in Settings → Gemini Scribe
 4. **Initialize Context**: Click "Initialize Vault Context" to help the agent understand your vault
 5. **Start Chatting**: Open Gemini Chat and start giving the AI tasks!
 
@@ -41,7 +41,7 @@ The agent can:
 
 - **Search and read** files in your vault
 - **Create, modify, and organize** notes
-- **Research topics** with web search and URL fetching
+- **Research topics** with web search and URL fetching (Gemini only)
 - **Execute complex workflows** autonomously
 - **Respect your permissions** with granular controls
 
@@ -113,7 +113,7 @@ Get real-time, context-aware text suggestions as you type.
 - IDE-style inline suggestions
 - Context-aware predictions
 - Accept with Tab, dismiss with any key
-- Minimal latency with Gemini Flash-8B
+- Minimal latency with fast models (Gemini Flash or OpenRouter equivalents)
 
 ### 📋 Auto Summarization
 
@@ -259,8 +259,9 @@ Agent: I'll create your weekly reflection. Let me:
 
 ### Essential Settings
 
-- **API Key**: Your Gemini API key (required)
-- **Chat Model**: AI model for agent conversations (default: Gemini 2.5 Pro)
+- **LLM Provider**: Choose Gemini or OpenRouter for text generation
+- **API Key**: Your provider API key (required)
+- **Chat Model**: AI model for agent conversations (Gemini dropdowns or OpenRouter model slugs)
 - **Plugin State Folder**: Where agent sessions and data are stored (default: gemini-scribe)
 
 ### Agent Permissions
@@ -274,15 +275,14 @@ Configure which operations require confirmation:
 
 ### Model Selection
 
-- **Agent/Chat**: Gemini 2.5 Pro (default, most capable)
-- **Completions**: Gemini Flash Lite Latest (default, fastest)
-- **Summary**: Gemini Flash Latest (default, balanced speed/quality)
+- **Gemini**: Defaults to Gemini 2.5 Pro (chat), Gemini Flash Lite Latest (completions), Gemini Flash Latest (summary)
+- **OpenRouter**: Enter model slugs per feature (leave summary/completions blank to reuse the chat model)
 
 ### Advanced Settings
 
-- **Temperature**: Control AI creativity (0-2.0, dynamically adjusted per model)
+- **Temperature**: Control AI creativity (0-2.0, dynamically adjusted for Gemini)
 - **Top P**: Control response diversity (0-1.0)
-- **Model Discovery**: Automatic model updates from Google API
+- **Model Discovery**: Automatic model updates from Google API (Gemini only)
 - **Tool Loop Detection**: Prevent infinite tool execution loops
 - **Developer Options**: Advanced debugging and configuration
 
@@ -307,14 +307,14 @@ _See the [Advanced Settings Guide](advanced-settings-guide.md) for detailed conf
 
 ### Data Handling
 
-- All API calls go directly to Google's Gemini API
-- No third-party servers involved
+- API calls go directly to the selected provider
+- Gemini-only features communicate with Google's APIs
 - Agent sessions stored locally in your vault
 - Your data never leaves your control
 
 ### Best Practices
 
-- Review API key permissions at Google AI Studio
+- Review API key permissions at your provider (Google AI Studio or OpenRouter)
 - Don't share sensitive data in agent conversations
 - Use vault encryption if working with confidential information
 - Regular backups recommended (agent sessions are just markdown files)

@@ -220,7 +220,7 @@ export class AgentViewTools {
 			const followUpRequest: ExtendedModelRequest = {
 				userMessage: '', // Empty since tool results are already in conversation history
 				conversationHistory: updatedHistory,
-				model: modelConfig.model || this.plugin.settings.chatModelName,
+				model: modelConfig.model || this.plugin.getChatModelName(),
 				temperature: modelConfig.temperature ?? this.plugin.settings.temperature,
 				topP: modelConfig.topP ?? this.plugin.settings.topP,
 				prompt: this.plugin.prompts.generalPrompt({
@@ -299,7 +299,7 @@ export class AgentViewTools {
 					const retryRequest: ExtendedModelRequest = {
 						userMessage: 'Please summarize what you just did with the tools.',
 						conversationHistory: updatedHistory,
-						model: modelConfig.model || this.plugin.settings.chatModelName,
+						model: modelConfig.model || this.plugin.getChatModelName(),
 						temperature: modelConfig.temperature ?? this.plugin.settings.temperature,
 						topP: modelConfig.topP ?? this.plugin.settings.topP,
 						prompt: 'Please summarize what you just did with the tools.',

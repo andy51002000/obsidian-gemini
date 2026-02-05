@@ -324,13 +324,14 @@ export class AgentView extends ItemView {
 
 UNDERSTANDING WIKILINKS:
 When you see a wikilink like [[Food/Mint.md|Mint]], this means:
-- FULL PATH to use for all operations: "Food/Mint.md" (the part BEFORE the | symbol)
+- Vault-relative path to use for all operations: "Food/Mint.md" (the part BEFORE the | symbol)
 - Display name shown to user: "Mint" (the part AFTER the | symbol)
 
 CRITICAL RULES for handling mentioned files:
-1. ALWAYS use the FULL PATH from the wikilink (before |) when calling any file tools
+1. ALWAYS use the vault-relative path from the wikilink (before |) when calling any file tools
 2. NEVER use just the display name (after |) as the file path
-3. When the user says "save to" or "write to" a mentioned file, use write_file with the FULL PATH
+3. When the user says "save to" or "write to" a mentioned file, use write_file with the vault-relative path
+4. NEVER use OS paths like /Users/... or C:\\... for vault tools
 
 Example interpretations:
 - "Save the answer to [[Food/Mint.md|Mint]]" → Use write_file with path: "Food/Mint.md"
@@ -374,7 +375,7 @@ To reference an image in your response, use the path shown above.`;
 				const request: ExtendedModelRequest = {
 					userMessage: message,
 					conversationHistory: conversationHistory,
-					model: modelConfig.model || this.plugin.settings.chatModelName,
+					model: modelConfig.model || this.plugin.getChatModelName(),
 					temperature: modelConfig.temperature ?? this.plugin.settings.temperature,
 					topP: modelConfig.topP ?? this.plugin.settings.topP,
 					prompt: additionalInstructions, // Additional context and instructions

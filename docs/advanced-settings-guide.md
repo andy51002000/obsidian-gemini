@@ -17,7 +17,7 @@ Advanced settings are hidden by default to keep the interface clean. To access t
 
 **Temperature** controls the randomness and creativity of AI responses:
 
-- **Range**: 0 to 2.0 (dynamically adjusted based on available models)
+- **Range**: 0 to 2.0 (Gemini adjusts dynamically; OpenRouter uses the standard range)
 - **Default**: 0.7
 - **Lower values** (0.0-0.5): More deterministic, consistent responses
 - **Higher values** (1.0-2.0): More creative, varied responses
@@ -32,7 +32,7 @@ Advanced settings are hidden by default to keep the interface clean. To access t
 
 **Top P** controls the diversity of word choices the AI considers:
 
-- **Range**: 0 to 1.0 (always fixed range for Gemini models)
+- **Range**: 0 to 1.0 (standard range; Gemini may validate per-model limits)
 - **Default**: Varies by model (typically 0.95-1.0)
 - **Lower values** (0.1-0.5): More focused, predictable responses
 - **Higher values** (0.8-1.0): More diverse, exploratory responses
@@ -45,7 +45,7 @@ Advanced settings are hidden by default to keep the interface clean. To access t
 
 ### Dynamic Parameter Ranges
 
-Gemini Scribe automatically discovers the parameter limits for your available models:
+Gemini Scribe automatically discovers the parameter limits for Gemini models:
 
 - **Temperature ranges** adapt to the maximum supported by your models
 - **Model-specific limits** are enforced to prevent API errors
@@ -80,11 +80,11 @@ Configure how the plugin handles API failures:
 6. Wait quadruple the delay (e.g., 4 seconds)
 7. Final attempt or success
 
-## Model Discovery
+## Model Discovery (Gemini Only)
 
 ### Dynamic Model Discovery
 
-Automatically fetch available models from Google's API:
+Automatically fetch available models from Google's API (Gemini only):
 
 **Enable Dynamic Model Discovery**
 

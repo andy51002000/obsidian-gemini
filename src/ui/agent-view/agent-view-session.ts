@@ -227,7 +227,7 @@ User: ${history[0].message}`;
 				const response = await modelApi.generateModelResponse({
 					userMessage: titlePrompt,
 					conversationHistory: [],
-					model: this.plugin.settings.chatModelName,
+					model: this.plugin.getChatModelName(),
 					prompt: titlePrompt,
 					renderContent: false,
 				});

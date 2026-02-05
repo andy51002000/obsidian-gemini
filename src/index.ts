@@ -51,7 +51,7 @@ export { GEMINI_MODELS } from './models';
 export type { ModelRole, GeminiModel, ModelUpdateResult } from './models';
 
 // Settings Types
-export type { ObsidianGeminiSettings, ModelDiscoverySettings } from './main';
+export type { ObsidianGeminiSettings, ModelDiscoverySettings, LlmProvider } from './main';
 
 // Service Types
 export type { GoogleModel, ModelDiscoveryResult } from './services/model-discovery';
@@ -105,10 +105,12 @@ export { GoogleSearchTool } from './tools/google-search-tool';
 
 export { WebFetchTool } from './tools/web-fetch-tool';
 
-// Gemini API Client (for advanced usage)
+// API Clients (for advanced usage)
 export { GeminiClient } from './api/gemini-client';
 
 export type { GeminiClientConfig } from './api/gemini-client';
+export { OpenRouterClient } from './api/openrouter-client';
+export type { OpenRouterClientConfig } from './api/openrouter-client';
 
 // Main Plugin Class (for type reference)
 export { default as ObsidianGeminiPlugin } from './main';

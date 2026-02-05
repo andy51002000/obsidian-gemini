@@ -1,6 +1,6 @@
 # IDE-Style Completions Guide
 
-IDE-Style Completions bring intelligent, context-aware text suggestions to your Obsidian writing experience. Like code completion in programming IDEs, this feature predicts and suggests what you might want to write next.
+IDE-Style Completions bring intelligent, context-aware text suggestions to your Obsidian writing experience. Like code completion in programming IDEs, this feature predicts and suggests what you might want to write next. Completions work with both Gemini and OpenRouter providers; OpenRouter uses model slugs you enter in settings.
 
 ## Table of Contents
 
@@ -123,9 +123,8 @@ In Settings → Gemini Scribe:
 
 **Completion Model**
 
-- Gemini 1.5 Flash-8B (fastest, recommended)
-- Gemini 1.5 Flash (balanced)
-- Gemini 1.5 Pro (highest quality, slower)
+- Gemini: 1.5 Flash-8B (fastest), 1.5 Flash (balanced), 1.5 Pro (highest quality)
+- OpenRouter: enter a model slug in settings (leave blank to reuse the chat model)
 
 ### Model Comparison
 

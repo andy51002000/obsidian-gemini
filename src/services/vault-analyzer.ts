@@ -43,7 +43,7 @@ export class VaultAnalyzer {
 		modal.open();
 
 		// Get the model name for display
-		const modelName = this.plugin.settings.chatModelName;
+		const modelName = this.plugin.getChatModelName();
 
 		// Define steps
 		modal.addStep('collect', 'Collecting vault information');
@@ -76,7 +76,7 @@ export class VaultAnalyzer {
 			const modelApi = GeminiClientFactory.createChatModel(this.plugin);
 			const response = await modelApi.generateModelResponse({
 				prompt: analysisPrompt,
-				model: this.plugin.settings.chatModelName,
+				model: this.plugin.getChatModelName(),
 				userMessage: '',
 				conversationHistory: [],
 				renderContent: false,
@@ -132,7 +132,7 @@ export class VaultAnalyzer {
 			const examplePromptsPrompt = this.plugin.prompts.examplePromptsPrompt(vaultInfo, existingPromptsString);
 			const examplePromptsResponse = await modelApi.generateModelResponse({
 				prompt: examplePromptsPrompt,
-				model: this.plugin.settings.chatModelName,
+				model: this.plugin.getChatModelName(),
 				userMessage: '',
 				conversationHistory: [],
 				renderContent: false,

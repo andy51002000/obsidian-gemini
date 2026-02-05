@@ -113,7 +113,7 @@ export class SelectionActionService {
 				contextInfo = `Source file: ${sourceFile.path}`;
 			}
 
-			// Call the Gemini API
+			// Call the model API
 			// Note: GeminiClientFactory.createChatModel wraps the client with RetryDecorator
 			// which provides automatic retry with exponential backoff for transient failures
 			const modelApi = GeminiClientFactory.createChatModel(this.plugin);
@@ -123,7 +123,7 @@ export class SelectionActionService {
 			const responsePromise = modelApi.generateModelResponse({
 				userMessage: userMessage,
 				conversationHistory: [],
-				model: this.plugin.settings.chatModelName,
+				model: this.plugin.getChatModelName(),
 				prompt: contextInfo,
 				temperature: this.plugin.settings.temperature,
 				topP: this.plugin.settings.topP,

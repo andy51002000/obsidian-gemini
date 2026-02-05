@@ -1,5 +1,5 @@
 /**
- * API module for Gemini AI integration
+ * API module for LLM integration
  */
 
 // Re-export the interfaces
@@ -15,6 +15,8 @@ export type {
 // Export the simplified factory
 export { GeminiClientFactory, ModelUseCase } from './simple-factory';
 
-// Export the client
+// Export the clients
 export { GeminiClient } from './gemini-client';
 export type { GeminiClientConfig } from './gemini-client';
+export { OpenRouterClient } from './openrouter-client';
+export type { OpenRouterClientConfig } from './openrouter-client';
